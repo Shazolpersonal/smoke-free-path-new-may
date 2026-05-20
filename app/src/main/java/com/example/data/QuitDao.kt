@@ -16,4 +16,14 @@ interface QuitDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertOrUpdateProfile(profile: QuitProfile)
+
+    // Craving log queries
+    @Query("SELECT * FROM craving_logs ORDER BY timestamp DESC")
+    fun getAllCravingLogsFlow(): Flow<List<CravingLog>>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertCravingLog(log: CravingLog)
+
+    @Query("DELETE FROM craving_logs")
+    suspend fun clearAllCravingLogs()
 }
