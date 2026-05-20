@@ -210,8 +210,8 @@ fun AffirmationCard(quote: String, onNextQuote: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(2.dp, RoundedCornerShape(20.dp)),
-        shape = RoundedCornerShape(20.dp),
+            .shadow(4.dp, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
@@ -220,12 +220,12 @@ fun AffirmationCard(quote: String, onNextQuote: () -> Unit) {
                 .background(
                     Brush.verticalGradient(
                         colors = listOf(
-                            PrimaryMint.copy(alpha = 0.05f),
+                            PrimaryMint.copy(alpha = 0.08f),
                             Color.Transparent
                         )
                     )
                 )
-                .padding(16.dp)
+                .padding(18.dp)
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -233,36 +233,64 @@ fun AffirmationCard(quote: String, onNextQuote: () -> Unit) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(text = "✨", fontSize = 16.sp)
-                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "✨",
+                        fontSize = 18.sp
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
                     Text(
                         text = "আজকের ইতিবাচক আত্মবিশ্বাস (Affirmation)",
                         fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = PrimaryMint
+                        fontWeight = FontWeight.Black,
+                        color = PrimaryMint,
+                        letterSpacing = 0.2.sp
                     )
                 }
                 IconButton(
                     onClick = onNextQuote,
-                    modifier = Modifier.size(24.dp)
+                    modifier = Modifier
+                        .size(32.dp)
+                        .background(PrimaryMint.copy(alpha = 0.1f), CircleShape)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Refresh,
                         contentDescription = "Refresh Quote",
-                        tint = PrimaryMint.copy(alpha = 0.7f),
+                        tint = PrimaryMint,
                         modifier = Modifier.size(16.dp)
                     )
                 }
             }
-            Spacer(modifier = Modifier.height(8.dp))
-            Text(
-                text = "“$quote”",
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
-                lineHeight = 18.sp,
-                textAlign = TextAlign.Start
-            )
+            Spacer(modifier = Modifier.height(12.dp))
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Text(
+                    text = "“",
+                    fontSize = 64.sp,
+                    fontWeight = FontWeight.Black,
+                    color = PrimaryMint.copy(alpha = 0.08f),
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .offset(x = (-4).dp, y = (-28).dp)
+                )
+                
+                AnimatedContent(
+                    targetState = quote,
+                    transitionSpec = {
+                        (fadeIn(animationSpec = tween(400)) + slideInVertically(animationSpec = tween(400)) { it / 3 }) togetherWith
+                        (fadeOut(animationSpec = tween(250)) + slideOutVertically(animationSpec = tween(250)) { -it / 3 })
+                    },
+                    label = "QuoteAnimation"
+                ) { targetQuote ->
+                    Text(
+                        text = "“$targetQuote”",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
+                        lineHeight = 20.sp,
+                        textAlign = TextAlign.Start,
+                        modifier = Modifier.padding(start = 12.dp, end = 4.dp, bottom = 4.dp)
+                    )
+                }
+            }
         }
     }
 }
@@ -276,17 +304,38 @@ fun CountdownWheelDashboard(
 ) {
     val haptic = LocalHapticFeedback.current
 
+    // Infinite breathing animation to represent calm lung recovery
+    val infiniteTransition = rememberInfiniteTransition(label = "TrackerLungPulse")
+    val pulseScale by infiniteTransition.animateFloat(
+        initialValue = 0.98f,
+        targetValue = 1.05f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseScale"
+    )
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.04f,
+        targetValue = 0.12f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(3000, easing = EaseInOutSine),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseAlpha"
+    )
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(28.dp)),
+            .shadow(6.dp, RoundedCornerShape(28.dp)),
         shape = RoundedCornerShape(28.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(20.dp),
+                .padding(22.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             // Header Row
@@ -298,13 +347,15 @@ fun CountdownWheelDashboard(
                 Column {
                     Text(
                         text = "ধূমপানমুক্ত মহাকাব্যিক রিয়েল-টাইম ট্র্যাকার",
-                        fontSize = 14.sp,
+                        fontSize = 15.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = MaterialTheme.colorScheme.onBackground
+                        color = MaterialTheme.colorScheme.onBackground,
+                        letterSpacing = 0.1.sp
                     )
                     Text(
                         text = "নিকোটিনমুক্ত সুবর্ণ পথ অতিক্রমণ",
                         fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
                     )
                 }
@@ -327,30 +378,55 @@ fun CountdownWheelDashboard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(26.dp))
 
-            // Beautiful interactive Circular/Symmetrical design representing breathing cell
+            // Beautiful interactive Circular design with lung pulse representation
             Box(
-                modifier = Modifier
-                    .size(200.dp)
-                    .clip(CircleShape)
-                    .background(
-                        Brush.radialGradient(
-                            colors = listOf(
-                                PrimaryMint.copy(alpha = 0.08f),
-                                Color.Transparent
-                            )
-                        )
-                    )
-                    .padding(8.dp),
-                contentAlignment = Alignment.Center
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.size(220.dp)
             ) {
-                // Secondary circular ring trace boundary
+                // Animated outer pulmonary breathing wave
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
+                        .graphicsLayer {
+                            scaleX = pulseScale * 1.15f
+                            scaleY = pulseScale * 1.15f
+                        }
+                        .size(190.dp)
+                        .background(PrimaryMint.copy(alpha = pulseAlpha), CircleShape)
+                )
+                
+                // Animated middle pulmonary breathing wave
+                Box(
+                    modifier = Modifier
+                        .graphicsLayer {
+                            scaleX = pulseScale
+                            scaleY = pulseScale
+                        }
+                        .size(180.dp)
+                        .background(SecondaryEmerald.copy(alpha = pulseAlpha / 1.5f), CircleShape)
+                )
+
+                // Main countdown container
+                Box(
+                    modifier = Modifier
+                        .size(165.dp)
                         .clip(CircleShape)
-                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.02f))
+                        .background(
+                            Brush.radialGradient(
+                                colors = listOf(
+                                    MaterialTheme.colorScheme.surface,
+                                    MaterialTheme.colorScheme.onBackground.copy(alpha = 0.015f)
+                                )
+                            )
+                        )
+                        .border(
+                            width = 2.dp,
+                            brush = Brush.linearGradient(
+                                colors = listOf(PrimaryMint, SecondaryEmerald.copy(alpha = 0.4f))
+                            ),
+                            shape = CircleShape
+                        )
                         .padding(12.dp),
                     contentAlignment = Alignment.Center
                 ) {
@@ -367,16 +443,17 @@ fun CountdownWheelDashboard(
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = if (timePassed.days > 0) "${timePassed.days} দিন" else "${timePassed.hours} ঘণ্টা",
-                            fontSize = 32.sp,
+                            fontSize = 30.sp,
                             fontWeight = FontWeight.Black,
                             color = PrimaryMint,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            letterSpacing = (-0.5).sp
                         )
                         Spacer(modifier = Modifier.height(4.dp))
                         Text(
                             text = "${timePassed.minutes}মি ${timePassed.seconds}সে",
                             fontSize = 14.sp,
-                            fontWeight = FontWeight.Bold,
+                            fontWeight = FontWeight.ExtraBold,
                             color = SecondaryEmerald,
                             textAlign = TextAlign.Center
                         )
@@ -408,7 +485,7 @@ fun CountdownWheelDashboard(
                 )
             }
 
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Beautiful interactive dual-metrics: Money Saved & Life Extended
             val elapsedMs = System.currentTimeMillis() - profile.quitTimestamp
@@ -434,8 +511,8 @@ fun CountdownWheelDashboard(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    .padding(horizontal = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 // Money Saved Card
                 Card(
@@ -443,38 +520,39 @@ fun CountdownWheelDashboard(
                         .weight(1f)
                         .border(
                             width = 1.dp,
-                            color = PrimaryMint.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(16.dp)
+                            color = PrimaryMint.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(18.dp)
                         ),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = PrimaryMint.copy(alpha = 0.03f)
+                        containerColor = PrimaryMint.copy(alpha = 0.02f)
                     )
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
+                                .size(34.dp)
                                 .background(AccentSky.copy(alpha = 0.15f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "৳", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AccentSky)
+                            Text(text = "৳", fontSize = 16.sp, fontWeight = FontWeight.Black, color = AccentSky)
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "সাশ্রয়ী টাকা",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "৳ $formattedBdtSaved",
-                            fontSize = 16.sp,
+                            fontSize = 17.sp,
                             fontWeight = FontWeight.Black,
                             color = PrimaryMint
                         )
@@ -487,24 +565,24 @@ fun CountdownWheelDashboard(
                         .weight(1f)
                         .border(
                             width = 1.dp,
-                            color = SecondaryEmerald.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(16.dp)
+                            color = SecondaryEmerald.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(18.dp)
                         ),
-                    shape = RoundedCornerShape(16.dp),
+                    shape = RoundedCornerShape(18.dp),
                     colors = CardDefaults.cardColors(
-                        containerColor = SecondaryEmerald.copy(alpha = 0.03f)
+                        containerColor = SecondaryEmerald.copy(alpha = 0.02f)
                     )
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(14.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(32.dp)
-                                .background(SecondaryEmerald.copy(alpha = 0.15f), CircleShape),
+                                .size(34.dp)
+                                .background(SecondaryEmerald.copy(alpha = 0.12f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
@@ -514,27 +592,29 @@ fun CountdownWheelDashboard(
                                 modifier = Modifier.size(16.dp)
                              )
                         }
-                        Spacer(modifier = Modifier.height(6.dp))
+                        Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "অর্জিত বাড়তি আয়ু",
                             fontSize = 11.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = lifeRegainedText,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
                             color = SecondaryEmerald,
-                            textAlign = TextAlign.Center
+                            textAlign = TextAlign.Center,
+                            lineHeight = 15.sp
                         )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
-            Spacer(modifier = Modifier.height(16.dp))
+            HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
+            Spacer(modifier = Modifier.height(18.dp))
 
             // Trigger log craving action block
             Row(
@@ -573,8 +653,9 @@ fun CountdownWheelDashboard(
                         onOpenLogCraving()
                     },
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryMint),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
+                    shape = RoundedCornerShape(14.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
+                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
                 ) {
                     Icon(
                         imageVector = Icons.Default.Add,
@@ -756,6 +837,13 @@ fun AdvancedBreathingCard(
                         BreathingState.Phase.HOLD_POST -> "ফুসফুস খালি রাখুন..."
                     }
 
+                    val phaseHelpText = when (breathingState.phase) {
+                         BreathingState.Phase.INHALE -> "১. নাক দিয়ে বুক ফুলিয়ে গভীর বাতাস টানুন (ফুসফুসের অলভিওলি প্রসারিত হচ্ছে)"
+                         BreathingState.Phase.HOLD -> "২. আলতো করে ফুসফুসে অক্সিজেন ধরে রাখুন (সুস্থ সেল গঠন করছে)"
+                         BreathingState.Phase.EXHALE -> "৩. মুখ গোল করে পরম শান্তিতে বিষাক্ত বাতাস ছেড়ে দিন (ক্র্যাভিং দূর হচ্ছে)"
+                         BreathingState.Phase.HOLD_POST -> "৪. শরীর সম্পূর্ণ শিথিল করে মন শান্ত রাখুন (রক্তচাপ স্বাভাবিক হচ্ছে)"
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -779,7 +867,7 @@ fun AdvancedBreathingCard(
 
                         Text(
                             text = actionTitleBengali,
-                            fontSize = 18.sp,
+                            fontSize = 20.sp,
                             fontWeight = FontWeight.Black,
                             color = bubbleColor,
                             textAlign = TextAlign.Center
@@ -831,8 +919,8 @@ fun AdvancedBreathingCard(
                                             colors = listOf(
                                                 bubbleColor,
                                                 bubbleColor.copy(alpha = 0.6f)
-                                            )
-                                        )
+                                             )
+                                         )
                                     )
                                     .padding(24.dp),
                                 contentAlignment = Alignment.Center
@@ -856,20 +944,61 @@ fun AdvancedBreathingCard(
 
                         Spacer(modifier = Modifier.height(16.dp))
 
-                        Text(
-                            text = "স্থির থাকুন এবং বায়ুর সাথে মনোসংযোগ স্থাপন করুন।",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                            textAlign = TextAlign.Center
-                        )
+                        // Health explanation panel
+                        Card(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                            shape = RoundedCornerShape(14.dp),
+                            colors = CardDefaults.cardColors(containerColor = bubbleColor.copy(alpha = 0.04f))
+                        ) {
+                            Text(
+                                text = phaseHelpText,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.8f),
+                                textAlign = TextAlign.Center,
+                                lineHeight = 16.sp,
+                                modifier = Modifier.padding(12.dp).fillMaxWidth()
+                            )
+                        }
 
                         Spacer(modifier = Modifier.height(16.dp))
 
+                        // Symmetrical Progress cycle indicator lights
+                        Row(
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(bottom = 12.dp)
+                        ) {
+                            for (i in 1..breathingState.totalCycles) {
+                                val isPastCycle = i < breathingState.currentCycle
+                                val isCurrentCycle = i == breathingState.currentCycle
+                                val circleColor = if (isPastCycle) SecondaryEmerald else if (isCurrentCycle) bubbleColor else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.12f)
+                                val circleSize = if (isCurrentCycle) 10.dp else 6.dp
+                                val circlePulse by animateDpAsState(targetValue = circleSize, label = "CycleDotSize")
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 4.dp)
+                                        .size(circlePulse)
+                                        .clip(CircleShape)
+                                        .background(circleColor)
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(8.dp))
+
                         TextButton(
                             onClick = onCancelBreathing,
-                            colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                            colors = ButtonDefaults.textButtonColors(contentColor = TerracottaWarn)
                         ) {
-                            Text(text = "ব্যায়াম বন্ধ করুন", fontWeight = FontWeight.Bold)
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "সমাপ্ত করুন",
+                                modifier = Modifier.size(16.dp),
+                                tint = TerracottaWarn
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(text = "ব্যায়াম সেশন বন্ধ করুন", fontWeight = FontWeight.Bold, color = TerracottaWarn, fontSize = 12.sp)
                         }
                     }
                 }
@@ -948,10 +1077,18 @@ fun CravingsLogSection(
 ) {
     var isExpandedHistory by remember { mutableStateOf(false) }
 
+    // Dynamic Warrior Tier Badge calculation based on resistance logs
+    val (tierTitle, tierColor, tierIcon) = when {
+        totalResisted >= 15 -> Triple("গোল্ডেন ডিফেন্ডার (Golden Defender)", AccentSky, "🏆")
+        totalResisted >= 7 -> Triple("সিলভার গার্ডিয়ান (Silver Guardian)", PrimaryMint, "🛡️")
+        totalResisted >= 1 -> Triple("ব্রোঞ্জ শিল্ড (Bronze Shield)", SecondaryEmerald, "✊")
+        else -> Triple("নবীন যোদ্ধা (Novice Warrior)", MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f), "🌱")
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .shadow(4.dp, RoundedCornerShape(24.dp)),
+            .shadow(3.dp, RoundedCornerShape(24.dp)),
         shape = RoundedCornerShape(24.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -1002,6 +1139,54 @@ fun CravingsLogSection(
                 modifier = Modifier.padding(bottom = 12.dp)
             )
 
+            // Achievement Shield Tier Banner
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 14.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(tierColor.copy(alpha = 0.08f))
+                    .border(1.dp, tierColor.copy(alpha = 0.15f), RoundedCornerShape(14.dp))
+                    .padding(12.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(text = tierIcon, fontSize = 20.sp)
+                        Spacer(modifier = Modifier.width(10.dp))
+                        Column {
+                            Text(
+                                text = "ক্র্যাভিং প্রতিরোধ মেডেল",
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                            )
+                            Text(
+                                text = tierTitle,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground
+                            )
+                        }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(tierColor.copy(alpha = 0.15f), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                    ) {
+                        Text(
+                            text = "$totalResisted প্রতিরোধ",
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Black,
+                            color = if (tierColor == MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)) MaterialTheme.colorScheme.onBackground else tierColor
+                        )
+                    }
+                }
+            }
+
             if (logs.isEmpty()) {
                 // Empty state layout beautifully styled
                 Box(
@@ -1034,70 +1219,79 @@ fun CravingsLogSection(
             } else {
                 // Latest log preview card
                 val latest = logs.first()
+                val severityColor = when (latest.severity) {
+                    "তীব্র" -> TerracottaWarn
+                    "মাঝারি" -> AccentSky
+                    else -> PrimaryMint
+                }
+                
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(PrimaryMint.copy(alpha = 0.04f))
-                        .padding(14.dp)
+                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.02f))
+                        .border(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.04f), RoundedCornerShape(16.dp))
                 ) {
-                    Column {
-                        Row(
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "সর্বশেষ প্রতিহত ট্রিগার",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PrimaryMint
-                            )
-                            Text(
-                                text = formatEpochTime(latest.timestamp),
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                            )
-                        }
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "ট্রিগার: ${latest.trigger}",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onBackground
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
-                            Box(
-                                modifier = Modifier
-                                    .background(
-                                        when (latest.severity) {
-                                            "তীব্র" -> TerracottaWarn.copy(alpha = 0.15f)
-                                            "মাঝারি" -> AccentSky.copy(alpha = 0.15f)
-                                            else -> PrimaryMint.copy(alpha = 0.15f)
-                                        },
-                                        RoundedCornerShape(6.dp)
-                                    )
-                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        // Colored accent bar specifying severity
+                        Box(
+                            modifier = Modifier
+                                .width(5.dp)
+                                .height(95.dp)
+                                .background(severityColor)
+                        )
+                        
+                        Column(modifier = Modifier.padding(14.dp).weight(1f)) {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "তীব্রতা: ${latest.severity}",
-                                    fontSize = 9.sp,
+                                    text = "সর্বশেষ প্রতিহত ট্রিগার",
+                                    fontSize = 11.sp,
                                     fontWeight = FontWeight.Bold,
-                                    color = when (latest.severity) {
-                                        "তীব্র" -> TerracottaWarn
-                                        "মাঝারি" -> AccentSky
-                                        else -> PrimaryMint
-                                    }
+                                    color = severityColor
+                                )
+                                Text(
+                                    text = formatEpochTime(latest.timestamp),
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                                 )
                             }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "ট্রিগার: ${latest.trigger}",
+                                    fontSize = 13.sp,
+                                    fontWeight = FontWeight.ExtraBold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .background(
+                                            severityColor.copy(alpha = 0.12f),
+                                            RoundedCornerShape(6.dp)
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "তীব্রতা: ${latest.severity}",
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = severityColor
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text(
+                                text = "প্রতিরোধ কৌশল: ${latest.copingMethod}",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                            )
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "প্রতিরোধ কৌশল: ${latest.copingMethod}",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
-                        )
                     }
                 }
 
@@ -1115,7 +1309,7 @@ fun CravingsLogSection(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "বিগত ইতিহাস (সর্বমোট: $totalResisted বারীর প্রতিরোধ)",
+                                text = "বিগত ইতিহাস (সর্বমোট: $totalResisted বার প্রতিরোধ)",
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold,
                                 color = MaterialTheme.colorScheme.onBackground
@@ -1123,7 +1317,7 @@ fun CravingsLogSection(
                             
                             TextButton(
                                 onClick = { viewModel.clearAllCravingLogs() },
-                                colors = ButtonDefaults.textButtonColors(contentColor = Color.Red)
+                                colors = ButtonDefaults.textButtonColors(contentColor = Color.Red.copy(alpha = 0.8f))
                             ) {
                                 Icon(Icons.Default.Delete, contentDescription = "Clear All", modifier = Modifier.size(14.dp))
                                 Spacer(modifier = Modifier.width(4.dp))
@@ -1136,47 +1330,67 @@ fun CravingsLogSection(
                         // Box/Column of history records
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             logs.drop(1).take(5).forEach { log ->
-                                Row(
+                                val histSeverityColor = when (log.severity) {
+                                    "তীব্র" -> TerracottaWarn
+                                    "মাঝারি" -> AccentSky
+                                    else -> PrimaryMint
+                                }
+                                Box(
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .background(
-                                            MaterialTheme.colorScheme.onBackground.copy(alpha = 0.02f),
-                                            RoundedCornerShape(12.dp)
-                                        )
-                                        .padding(10.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.015f))
+                                        .border(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.03f), RoundedCornerShape(12.dp))
                                 ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = log.trigger,
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onBackground
-                                            )
-                                            Spacer(modifier = Modifier.width(8.dp))
-                                            Text(
-                                                text = "(${log.severity})",
-                                                fontSize = 10.sp,
-                                                color = when (log.severity) {
-                                                    "তীব্র" -> TerracottaWarn
-                                                    "মাঝারি" -> AccentSky
-                                                    else -> PrimaryMint
+                                    Row(modifier = Modifier.fillMaxWidth()) {
+                                        Box(
+                                            modifier = Modifier
+                                                .width(4.dp)
+                                                .height(54.dp)
+                                                .background(histSeverityColor)
+                                        )
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(10.dp),
+                                            horizontalArrangement = Arrangement.SpaceBetween,
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Column(modifier = Modifier.weight(1f)) {
+                                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                                    Text(
+                                                        text = log.trigger,
+                                                        fontSize = 12.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        color = MaterialTheme.colorScheme.onBackground
+                                                    )
+                                                    Spacer(modifier = Modifier.width(8.dp))
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .background(histSeverityColor.copy(alpha = 0.1f), RoundedCornerShape(4.dp))
+                                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = log.severity,
+                                                            fontSize = 8.sp,
+                                                            fontWeight = FontWeight.Bold,
+                                                            color = histSeverityColor
+                                                        )
+                                                    }
                                                 }
+                                                Text(
+                                                    text = "কৌশল: ${log.copingMethod}",
+                                                    fontSize = 10.sp,
+                                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                                                )
+                                            }
+                                            Text(
+                                                text = formatEpochTime(log.timestamp),
+                                                fontSize = 9.sp,
+                                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
                                             )
                                         }
-                                        Text(
-                                            text = "কৌশল: ${log.copingMethod}",
-                                            fontSize = 10.sp,
-                                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                                        )
                                     }
-                                    Text(
-                                        text = formatEpochTime(log.timestamp),
-                                        fontSize = 9.sp,
-                                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f)
-                                    )
                                 }
                             }
                         }
@@ -1217,12 +1431,25 @@ fun TimelineMilestoneRow(
     var expanded by remember { mutableStateOf(false) }
     val isCompleted = currentSecondsElapsed >= item.secondsNeeded
 
+    val remainingSeconds = item.secondsNeeded - currentSecondsElapsed
+    val remainingText = if (remainingSeconds > 0) {
+        val days = remainingSeconds / (24 * 3600)
+        val hours = (remainingSeconds % (24 * 3600)) / 3600
+        val minutes = (remainingSeconds % 3600) / 60
+        val secs = remainingSeconds % 60
+        when {
+            days > 0 -> "আর মাত্র $days দিন $hours ঘণ্টা বাকি"
+            hours > 0 -> "আর মাত্র $hours ঘণ্টা $minutes মিনিট বাকি"
+            else -> "আর মাত্র $minutes মিনিট $secs সেকেন্ড বাকি"
+        }
+    } else ""
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .clickable { expanded = !expanded }
-            .shadow(if (expanded) 3.dp else 1.dp, RoundedCornerShape(16.dp)),
-        shape = RoundedCornerShape(16.dp),
+            .shadow(if (expanded) 3.dp else 1.dp, RoundedCornerShape(18.dp)),
+        shape = RoundedCornerShape(18.dp),
         colors = CardDefaults.cardColors(
             containerColor = if (isCompleted) PrimaryMint.copy(alpha = 0.02f) else MaterialTheme.colorScheme.surface
         )
@@ -1243,7 +1470,7 @@ fun TimelineMilestoneRow(
                 ) {
                     Box(
                         modifier = Modifier
-                            .size(36.dp)
+                            .size(38.dp)
                             .clip(CircleShape)
                             .background(
                                 if (isCompleted) SecondaryEmerald.copy(alpha = 0.15f)
@@ -1264,19 +1491,38 @@ fun TimelineMilestoneRow(
                             fontSize = 14.sp,
                             color = if (isCompleted) SecondaryEmerald else MaterialTheme.colorScheme.onBackground
                         )
+                        Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = item.shortBenefit,
                             fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
                             color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f)
                         )
                     }
                 }
 
-                Icon(
-                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = "Expand details",
-                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (!isCompleted && remainingText.isNotEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .background(TerracottaWarn.copy(alpha = 0.08f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 6.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "লকড",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = TerracottaWarn
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                        contentDescription = "Expand details",
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f)
+                    )
+                }
             }
 
             AnimatedVisibility(
@@ -1290,7 +1536,7 @@ fun TimelineMilestoneRow(
                         .padding(top = 10.dp)
                         .background(
                             MaterialTheme.colorScheme.onBackground.copy(alpha = 0.03f),
-                            RoundedCornerShape(10.dp)
+                            RoundedCornerShape(12.dp)
                         )
                         .padding(12.dp)
                 ) {
@@ -1308,7 +1554,7 @@ fun TimelineMilestoneRow(
                         lineHeight = 16.sp
                     )
 
-                    Spacer(modifier = Modifier.height(8.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
                     if (!isCompleted) {
                         val progress = currentSecondsElapsed.toFloat() / item.secondsNeeded.toFloat()
@@ -1323,22 +1569,42 @@ fun TimelineMilestoneRow(
                                 color = PrimaryMint,
                                 trackColor = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f)
                             )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text(
-                                text = "শারীরিক রূপান্তর অগ্রগতি: ${(clampedProgress * 100).toInt()}%",
-                                fontSize = 10.sp,
-                                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
-                                textAlign = TextAlign.End,
-                                modifier = Modifier.fillMaxWidth()
-                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = remainingText,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = TerracottaWarn
+                                )
+                                Text(
+                                    text = "অগ্রগতি: ${(clampedProgress * 100).toInt()}%",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PrimaryMint
+                                )
+                            }
                         }
                     } else {
-                        Text(
-                            text = "✓ এই রিকভারি ধাপটি আপনি সফলভাবে সম্পন্ন করেছেন!",
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = SecondaryEmerald
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.CheckCircle,
+                                contentDescription = "Completed",
+                                tint = SecondaryEmerald,
+                                modifier = Modifier.size(14.dp)
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "এই রিকভারি ধাপটি আপনি সফলভাবে সম্পন্ন করেছেন!",
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = SecondaryEmerald
+                            )
+                        }
                     }
                 }
             }
