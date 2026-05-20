@@ -26,6 +26,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -268,6 +271,8 @@ fun CountdownWheelDashboard(
     onCustomizeClick: () -> Unit,
     onOpenLogCraving: () -> Unit
 ) {
+    val haptic = LocalHapticFeedback.current
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -302,7 +307,10 @@ fun CountdownWheelDashboard(
                 }
 
                 IconButton(
-                    onClick = onCustomizeClick,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onCustomizeClick()
+                    },
                     modifier = Modifier
                         .size(36.dp)
                         .background(PrimaryMint.copy(alpha = 0.1f), CircleShape)
@@ -397,6 +405,130 @@ fun CountdownWheelDashboard(
                 )
             }
 
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // Beautiful interactive dual-metrics: Money Saved & Life Extended
+            val elapsedMs = System.currentTimeMillis() - profile.quitTimestamp
+            val elapsedMsSafe = if (elapsedMs > 0) elapsedMs else 0L
+            val elapsedDays = elapsedMsSafe.toDouble() / (1000.0 * 60 * 60 * 24)
+            val bdtSaved = elapsedDays * 150.0
+            val formattedBdtSaved = String.format(Locale.getDefault(), "%.1f", bdtSaved)
+            val lifeMinutesRegained = (elapsedDays * 110.0).toInt()
+            val lifeRegainedText = when {
+                lifeMinutesRegained >= 1440 -> {
+                    val d = lifeMinutesRegained / 1440
+                    val h = (lifeMinutesRegained % 1440) / 60
+                    "$d দিন $h ঘণ্টা"
+                }
+                lifeMinutesRegained >= 60 -> {
+                    val h = lifeMinutesRegained / 60
+                    val m = lifeMinutesRegained % 60
+                    "$h ঘণ্টা $m মিনিট"
+                }
+                else -> "$lifeMinutesRegained মিনিট"
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                // Money Saved Card
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .border(
+                            width = 1.dp,
+                            color = PrimaryMint.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = PrimaryMint.copy(alpha = 0.03f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(AccentSky.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(text = "৳", fontSize = 16.sp, fontWeight = FontWeight.Bold, color = AccentSky)
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "সাশ্রয়ী টাকা",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = "৳ $formattedBdtSaved",
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Black,
+                            color = PrimaryMint
+                        )
+                    }
+                }
+
+                // Life Regained Card
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .border(
+                            width = 1.dp,
+                            color = SecondaryEmerald.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = SecondaryEmerald.copy(alpha = 0.03f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(12.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(32.dp)
+                                .background(SecondaryEmerald.copy(alpha = 0.15f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Favorite,
+                                contentDescription = "Life Regained",
+                                tint = SecondaryEmerald,
+                                modifier = Modifier.size(16.dp)
+                             )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "অর্জিত বাড়তি আয়ু",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+                        )
+                        Text(
+                            text = lifeRegainedText,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = SecondaryEmerald,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(24.dp))
             HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
             Spacer(modifier = Modifier.height(16.dp))
@@ -433,7 +565,10 @@ fun CountdownWheelDashboard(
                 }
 
                 Button(
-                    onClick = onOpenLogCraving,
+                    onClick = {
+                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                        onOpenLogCraving()
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = PrimaryMint),
                     shape = RoundedCornerShape(12.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp)
@@ -647,43 +782,76 @@ fun AdvancedBreathingCard(
                             textAlign = TextAlign.Center
                         )
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
-                        // Pulsing Visual Bubble Core
+                        // Animated breathing cell simulator container
                         Box(
                             modifier = Modifier
-                                .size(130.dp)
-                                .shadow(6.dp, CircleShape)
-                                .clip(CircleShape)
-                                .background(
-                                    Brush.verticalGradient(
-                                        colors = listOf(
-                                            bubbleColor.copy(alpha = 0.9f),
-                                            bubbleColor.copy(alpha = 0.4f)
-                                        )
-                                    )
-                                )
-                                .padding(24.dp)
-                                .align(Alignment.CenterHorizontally),
+                                .height(210.dp)
+                                .fillMaxWidth(),
                             contentAlignment = Alignment.Center
                         ) {
+                            // Outer ambient halo that expands even more
                             Box(
                                 modifier = Modifier
-                                    .fillMaxSize()
+                                    .graphicsLayer(
+                                        scaleX = scale * 1.25f,
+                                        scaleY = scale * 1.25f
+                                    )
+                                    .size(130.dp)
+                                    .background(bubbleColor.copy(alpha = 0.1f), CircleShape)
+                            )
+
+                            // Middle ambient halo
+                            Box(
+                                modifier = Modifier
+                                    .graphicsLayer(
+                                        scaleX = scale * 1.12f,
+                                        scaleY = scale * 1.12f
+                                    )
+                                    .size(130.dp)
+                                    .background(bubbleColor.copy(alpha = 0.22f), CircleShape)
+                            )
+
+                            // Main core interactive bubble
+                            Box(
+                                modifier = Modifier
+                                    .graphicsLayer(
+                                        scaleX = scale,
+                                        scaleY = scale
+                                    )
+                                    .size(130.dp)
+                                    .shadow(8.dp, CircleShape)
                                     .clip(CircleShape)
-                                    .background(Color.White.copy(alpha = 0.15f)),
+                                    .background(
+                                        Brush.verticalGradient(
+                                            colors = listOf(
+                                                bubbleColor,
+                                                bubbleColor.copy(alpha = 0.6f)
+                                            )
+                                        )
+                                    )
+                                    .padding(24.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = "${breathingState.secondsRemaining}",
-                                    color = Color.White,
-                                    fontSize = 32.sp,
-                                    fontWeight = FontWeight.Black
-                                )
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .clip(CircleShape)
+                                        .background(Color.White.copy(alpha = 0.15f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(
+                                        text = "${breathingState.secondsRemaining}",
+                                        color = Color.White,
+                                        fontSize = 32.sp,
+                                        fontWeight = FontWeight.Black
+                                    )
+                                }
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(24.dp))
+                        Spacer(modifier = Modifier.height(16.dp))
 
                         Text(
                             text = "স্থির থাকুন এবং বায়ুর সাথে মনোসংযোগ স্থাপন করুন।",
@@ -733,6 +901,7 @@ fun AdvancedBreathingCard(
 @Composable
 fun RowScope.QuickCopingPill(icon: String, action: String, desc: String) {
     var isTriggered by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     Box(
         modifier = Modifier
@@ -742,7 +911,10 @@ fun RowScope.QuickCopingPill(icon: String, action: String, desc: String) {
                 if (isTriggered) PrimaryMint.copy(alpha = 0.15f) else MaterialTheme.colorScheme.background,
                 RoundedCornerShape(12.dp)
             )
-            .clickable { isTriggered = !isTriggered }
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                isTriggered = !isTriggered
+            }
             .padding(10.dp)
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1066,16 +1238,25 @@ fun TimelineMilestoneRow(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.weight(1f)
                 ) {
-                    Icon(
-                        imageVector = if (isCompleted) Icons.Default.CheckCircle else Icons.Default.Lock,
-                        contentDescription = "Status",
-                        tint = if (isCompleted) SecondaryEmerald else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.3f),
-                        modifier = Modifier.size(24.dp)
-                    )
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (isCompleted) SecondaryEmerald.copy(alpha = 0.15f)
+                                else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = if (isCompleted) "🏆" else "🔒",
+                            fontSize = 18.sp
+                        )
+                    }
                     Spacer(modifier = Modifier.width(12.dp))
                     Column {
                         Text(
-                            text = item.timeLabel,
+                            text = if (isCompleted) "${item.timeLabel} (অর্জিত!)" else item.timeLabel,
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp,
                             color = if (isCompleted) SecondaryEmerald else MaterialTheme.colorScheme.onBackground
