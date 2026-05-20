@@ -139,6 +139,26 @@ class QuitViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateProfileSettings(userName: String, quitTimestamp: Long, cigarettesPerDay: Int, pricePerCigarette: Double) {
+        viewModelScope.launch {
+            val current = _uiState.value.profile
+            val updated = current.copy(
+                userName = userName,
+                quitTimestamp = quitTimestamp,
+                cigarettesPerDay = cigarettesPerDay,
+                pricePerCigarette = pricePerCigarette
+            )
+            repository.saveProfile(updated)
+            _uiState.update {
+                it.copy(
+                    showCustomizeDialog = false,
+                    showSuccessMessage = "প্রোফাইল এবং সাশ্রয় লক্ষ্যমাত্রা সফলভাবে আপডেট করা হয়েছে!"
+                )
+            }
+            startRealtimeCountdown(quitTimestamp)
+        }
+    }
+
     fun setBreathingStyle(style: BreathingStyle) {
         _uiState.update { it.copy(selectedBreathingStyle = style) }
     }

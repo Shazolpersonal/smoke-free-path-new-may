@@ -10,6 +10,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -64,6 +65,8 @@ fun QuitSmokeDashboard(
         )
     }
     var currentQuoteIndex by remember { mutableStateOf(0) }
+    var showSOSDialog by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
 
     // Trigger Snackbar for success notifications
     LaunchedEffect(state.showSuccessMessage) {
@@ -76,6 +79,36 @@ fun QuitSmokeDashboard(
     Scaffold(
         modifier = modifier.fillMaxSize(),
         snackbarHost = { SnackbarHost(hostState = snackbarHostState) },
+        floatingActionButton = {
+            ExtendedFloatingActionButton(
+                onClick = {
+                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                    showSOSDialog = true
+                },
+                containerColor = TerracottaWarn,
+                contentColor = Color.White,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 8.dp,
+                    pressedElevation = 12.dp
+                ),
+                shape = RoundedCornerShape(20.dp),
+                modifier = Modifier.padding(bottom = 8.dp, end = 8.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Warning,
+                    contentDescription = "🚨 তীব্র ইচ্ছা প্রশমন কিট (SOS)",
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "🚨 SOS",
+                    fontWeight = FontWeight.Black,
+                    fontSize = 14.sp,
+                    color = Color.White
+                )
+            }
+        },
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
@@ -139,7 +172,8 @@ fun QuitSmokeDashboard(
                     timePassed = state.timePassed,
                     profile = state.profile,
                     onCustomizeClick = { viewModel.setShowCustomize(true) },
-                    onOpenLogCraving = { viewModel.setShowLogCraving(true) }
+                    onOpenLogCraving = { viewModel.setShowLogCraving(true) },
+                    onOpenSOSClick = { showSOSDialog = true }
                 )
             }
 
@@ -161,6 +195,13 @@ fun QuitSmokeDashboard(
                     logs = state.cravingLogs,
                     totalResisted = state.profile.cravingsResisted,
                     viewModel = viewModel
+                )
+            }
+
+            // Section 3b: Trigger & Severity Analytics Card
+            item {
+                QuitAnalyticsDashboard(
+                    logs = state.cravingLogs
                 )
             }
 
@@ -188,9 +229,11 @@ fun QuitSmokeDashboard(
     // Modal dialog for customizable countdown timer
     if (state.showCustomizeDialog) {
         CustomizeTimerDialog(
-            currentTimestamp = state.profile.quitTimestamp,
+            profile = state.profile,
             onDismiss = { viewModel.setShowCustomize(false) },
-            onSave = { newTimestamp -> viewModel.updateQuitTimestamp(newTimestamp) }
+            onSave = { name, timestamp, dailyCount, price ->
+                viewModel.updateProfileSettings(userName = name, quitTimestamp = timestamp, cigarettesPerDay = dailyCount, pricePerCigarette = price)
+            }
         )
     }
 
@@ -200,6 +243,17 @@ fun QuitSmokeDashboard(
             onDismiss = { viewModel.setShowLogCraving(false) },
             onSave = { trigger, severity, coping ->
                 viewModel.saveDetailedCravingLog(trigger, severity, coping)
+            }
+        )
+    }
+
+    // Modal dialog for Emergency SOS Grounding Kit
+    if (showSOSDialog) {
+        SOSGroundingDialog(
+            onDismiss = { showSOSDialog = false },
+            onLogCrisisResisted = { trigger, severity, coping ->
+                viewModel.saveDetailedCravingLog(trigger, severity, coping)
+                showSOSDialog = false
             }
         )
     }
@@ -300,7 +354,8 @@ fun CountdownWheelDashboard(
     timePassed: TimeRemaining,
     profile: QuitProfile,
     onCustomizeClick: () -> Unit,
-    onOpenLogCraving: () -> Unit
+    onOpenLogCraving: () -> Unit,
+    onOpenSOSClick: () -> Unit
 ) {
     val haptic = LocalHapticFeedback.current
 
@@ -487,43 +542,49 @@ fun CountdownWheelDashboard(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Beautiful interactive dual-metrics: Money Saved & Life Extended
+            // Beautiful interactive triple-metrics: Money Saved, Cigarettes Avoided, & Life Extended
             val elapsedMs = System.currentTimeMillis() - profile.quitTimestamp
             val elapsedMsSafe = if (elapsedMs > 0) elapsedMs else 0L
             val elapsedDays = elapsedMsSafe.toDouble() / (1000.0 * 60 * 60 * 24)
-            val bdtSaved = elapsedDays * 150.0
+            
+            val cigarettesCount = profile.cigarettesPerDay
+            val stickPrice = profile.pricePerCigarette
+            val cigarettesAvoided = (elapsedDays * cigarettesCount).toInt()
+            val bdtSaved = elapsedDays * cigarettesCount * stickPrice
             val formattedBdtSaved = String.format(Locale.getDefault(), "%.1f", bdtSaved)
-            val lifeMinutesRegained = (elapsedDays * 110.0).toInt()
+            
+            // Each cigarette avoided restores approx 11 minutes of life
+            val lifeMinutesRegained = (cigarettesAvoided * 11)
             val lifeRegainedText = when {
                 lifeMinutesRegained >= 1440 -> {
                     val d = lifeMinutesRegained / 1440
                     val h = (lifeMinutesRegained % 1440) / 60
-                    "$d দিন $h ঘণ্টা"
+                    "$d দিন $h ঘ."
                 }
                 lifeMinutesRegained >= 60 -> {
                     val h = lifeMinutesRegained / 60
                     val m = lifeMinutesRegained % 60
-                    "$h ঘণ্টা $m মিনিট"
+                    "$h ঘ. $m মি."
                 }
-                else -> "$lifeMinutesRegained মিনিট"
+                else -> "$lifeMinutesRegained মি."
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 2.dp),
-                horizontalArrangement = Arrangement.spacedBy(14.dp)
+                    .padding(horizontal = 1.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                // Money Saved Card
+                // 1. Money Saved Card
                 Card(
                     modifier = Modifier
                         .weight(1f)
                         .border(
                             width = 1.dp,
                             color = PrimaryMint.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(18.dp)
+                            shape = RoundedCornerShape(16.dp)
                         ),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = PrimaryMint.copy(alpha = 0.02f)
                     )
@@ -531,44 +592,98 @@ fun CountdownWheelDashboard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(28.dp)
                                 .background(AccentSky.copy(alpha = 0.15f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "৳", fontSize = 16.sp, fontWeight = FontWeight.Black, color = AccentSky)
+                            Text(text = "৳", fontSize = 14.sp, fontWeight = FontWeight.Black, color = AccentSky)
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "সাশ্রয়ী টাকা",
-                            fontSize = 11.sp,
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
                             text = "৳ $formattedBdtSaved",
-                            fontSize = 17.sp,
+                            fontSize = 13.sp,
                             fontWeight = FontWeight.Black,
-                            color = PrimaryMint
+                            color = PrimaryMint,
+                            textAlign = TextAlign.Center
                         )
                     }
                 }
 
-                // Life Regained Card
+                // 2. Cigarettes Avoided Card
+                Card(
+                    modifier = Modifier
+                        .weight(1f)
+                        .border(
+                            width = 1.dp,
+                            color = TerracottaWarn.copy(alpha = 0.12f),
+                            shape = RoundedCornerShape(16.dp)
+                        ),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = TerracottaWarn.copy(alpha = 0.02f)
+                    )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(10.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(TerracottaWarn.copy(alpha = 0.12f), CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Avoided Stick",
+                                tint = TerracottaWarn,
+                                modifier = Modifier.size(12.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(
+                            text = "এড়ানো সিগারেট",
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = "$cigarettesAvoided টি",
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Black,
+                            color = TerracottaWarn,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+
+                // 3. Life Regained Card
                 Card(
                     modifier = Modifier
                         .weight(1f)
                         .border(
                             width = 1.dp,
                             color = SecondaryEmerald.copy(alpha = 0.12f),
-                            shape = RoundedCornerShape(18.dp)
+                            shape = RoundedCornerShape(16.dp)
                         ),
-                    shape = RoundedCornerShape(18.dp),
+                    shape = RoundedCornerShape(16.dp),
                     colors = CardDefaults.cardColors(
                         containerColor = SecondaryEmerald.copy(alpha = 0.02f)
                     )
@@ -576,12 +691,12 @@ fun CountdownWheelDashboard(
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(14.dp),
+                            .padding(10.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Box(
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(28.dp)
                                 .background(SecondaryEmerald.copy(alpha = 0.12f), CircleShape),
                             contentAlignment = Alignment.Center
                         ) {
@@ -589,15 +704,16 @@ fun CountdownWheelDashboard(
                                 imageVector = Icons.Default.Favorite,
                                 contentDescription = "Life Regained",
                                 tint = SecondaryEmerald,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(12.dp)
                              )
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = "অর্জিত বাড়তি আয়ু",
-                            fontSize = 11.sp,
+                            fontSize = 9.sp,
                             fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f)
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.55f),
+                            textAlign = TextAlign.Center
                         )
                         Spacer(modifier = Modifier.height(2.dp))
                         Text(
@@ -612,9 +728,7 @@ fun CountdownWheelDashboard(
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
-            HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.06f))
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
             // Trigger log craving action block
             Row(
@@ -647,23 +761,49 @@ fun CountdownWheelDashboard(
                     )
                 }
 
-                Button(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        onOpenLogCraving()
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = PrimaryMint),
-                    shape = RoundedCornerShape(14.dp),
-                    contentPadding = PaddingValues(horizontal = 14.dp, vertical = 10.dp),
-                    elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "অভিযান লগ",
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(text = "ইচ্ছে সামলেছি", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    // Pulsating SOS Button
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onOpenSOSClick()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = TerracottaWarn),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(6.dp)
+                                .background(Color.White, CircleShape)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "SOS", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Existing "ইচ্ছে সামলেছি" Button
+                    Button(
+                        onClick = {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            onOpenLogCraving()
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = PrimaryMint),
+                        shape = RoundedCornerShape(14.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "অভিযান লগ",
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(text = "ইচ্ছে সামলেছি", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
                 }
             }
         }
@@ -1561,7 +1701,7 @@ fun TimelineMilestoneRow(
                         val clampedProgress = progress.coerceIn(0f, 1f)
                         Column {
                             LinearProgressIndicator(
-                                progress = clampedProgress,
+                                progress = { clampedProgress },
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(6.dp)
@@ -2055,27 +2195,36 @@ fun EducationalItem(
 
 @Composable
 fun CustomizeTimerDialog(
-    currentTimestamp: Long,
+    profile: QuitProfile,
     onDismiss: () -> Unit,
-    onSave: (Long) -> Unit
+    onSave: (String, Long, Int, Double) -> Unit
 ) {
-    var inputDays by remember { mutableStateOf("0") }
-    var inputHours by remember { mutableStateOf("2") }
-    var inputMinutes by remember { mutableStateOf("0") }
+    val initialOffsetMs = System.currentTimeMillis() - profile.quitTimestamp
+    val initialOffsetSafe = if (initialOffsetMs > 0) initialOffsetMs else 0L
+    val initialDays = initialOffsetSafe / (1000L * 60 * 60 * 24)
+    val initialHours = (initialOffsetSafe % (1000L * 60 * 60 * 24)) / (1000L * 60 * 60)
+    val initialMinutes = (initialOffsetSafe % (1000L * 60 * 60)) / (1000L * 60)
+
+    var userNameInput by remember { mutableStateOf(profile.userName) }
+    var inputDays by remember { mutableStateOf(initialDays.toString()) }
+    var inputHours by remember { mutableStateOf(initialHours.toString()) }
+    var inputMinutes by remember { mutableStateOf(initialMinutes.toString()) }
+    var inputCigarettesPerDay by remember { mutableStateOf(profile.cigarettesPerDay.toString()) }
+    var inputPricePerCigarette by remember { mutableStateOf(profile.pricePerCigarette.toInt().toString()) }
 
     Dialog(onDismissRequest = onDismiss) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp)
-                .shadow(8.dp, RoundedCornerShape(24.dp)),
+                .padding(12.dp)
+                .shadow(10.dp, RoundedCornerShape(24.dp)),
             shape = RoundedCornerShape(24.dp),
             colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(24.dp),
+                    .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Icon(
@@ -2084,60 +2233,132 @@ fun CustomizeTimerDialog(
                     tint = PrimaryMint,
                     modifier = Modifier.size(36.dp)
                 )
-                Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(10.dp))
                 Text(
-                    text = "সময় কাস্টমাইজ করুন",
+                    text = "প্রোফাইল ও ট্র্যাকার কাস্টমাইজ",
                     fontSize = 18.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onBackground
                 )
                 Text(
-                    text = "সঠিক দিন ও সময়কাল থেকে ট্র্যাক করতে কত সময় আগে শেষ ধূমপান করেছেন তা বলুন।",
+                    text = "আপনার সঠিক হিসাব বজায় রাখতে নিচের তথ্যগুলো প্রদান করুন।",
                     fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
-                    textAlign = TextAlign.Center,
-                    lineHeight = 16.sp
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                    textAlign = TextAlign.Center
                 )
 
-                Spacer(modifier = Modifier.height(20.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
+                // Custom User Name Field
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    Text(
+                        text = "আপনার নাম / ছদ্মনাম",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = PrimaryMint
+                    )
+                    Spacer(modifier = Modifier.height(4.dp))
+                    OutlinedTextField(
+                        value = userNameInput,
+                        onValueChange = { userNameInput = it },
+                        singleLine = true,
+                        placeholder = { Text("ধূমপানমুক্ত যোদ্ধা", fontSize = 12.sp) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryMint)
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Quit Duration Fields
+                Text(
+                    text = "কতদিন আগে ধূমপান ছেড়েছেন?",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryMint,
+                    modifier = Modifier.align(Alignment.Start)
+                )
+                Spacer(modifier = Modifier.height(4.dp))
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "দিন সংখ্যা", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryMint)
                         OutlinedTextField(
                             value = inputDays,
-                            onValueChange = { inputDays = it.filter { char -> char.isDigit() } },
+                            onValueChange = { inputDays = it.filter { c -> c.isDigit() } },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
+                            label = { Text("দিন", fontSize = 9.sp) },
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryMint)
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "ঘণ্টা", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryMint)
                         OutlinedTextField(
                             value = inputHours,
-                            onValueChange = { inputHours = it.filter { char -> char.isDigit() } },
+                            onValueChange = { inputHours = it.filter { c -> c.isDigit() } },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
+                            label = { Text("ঘণ্টা", fontSize = 9.sp) },
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryMint)
                         )
                     }
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "মিনিট", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = PrimaryMint)
                         OutlinedTextField(
                             value = inputMinutes,
-                            onValueChange = { inputMinutes = it.filter { char -> char.isDigit() } },
+                            onValueChange = { inputMinutes = it.filter { c -> c.isDigit() } },
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                             singleLine = true,
+                            label = { Text("মিনিট", fontSize = 9.sp) },
                             colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryMint)
                         )
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(12.dp))
+
+                // Habits (Cigarettes stats) Fields
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "দৈনিক ধূমপানের সংখ্যা",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryMint
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = inputCigarettesPerDay,
+                            onValueChange = { inputCigarettesPerDay = it.filter { c -> c.isDigit() } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            placeholder = { Text("১০", fontSize = 12.sp) },
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryMint)
+                        )
+                    }
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = "প্রতিটির গড় মূল্য (৳)",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = PrimaryMint
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        OutlinedTextField(
+                            value = inputPricePerCigarette,
+                            onValueChange = { inputPricePerCigarette = it.filter { c -> c.isDigit() } },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            singleLine = true,
+                            placeholder = { Text("১৫", fontSize = 12.sp) },
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = PrimaryMint)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -2152,13 +2373,16 @@ fun CustomizeTimerDialog(
 
                     Button(
                         onClick = {
+                            val name = if (userNameInput.isNotBlank()) userNameInput else "ধূমপানমুক্ত যোদ্ধা"
                             val d = inputDays.toLongOrNull() ?: 0L
                             val h = inputHours.toLongOrNull() ?: 0L
                             val m = inputMinutes.toLongOrNull() ?: 0L
+                            val cigarettes = inputCigarettesPerDay.toIntOrNull() ?: 10
+                            val price = inputPricePerCigarette.toDoubleOrNull() ?: 15.0
 
                             val offsetMs = (d * 24L * 60L * 60L * 1000L) + (h * 60L * 60L * 1000L) + (m * 60L * 1000L)
                             val targetTs = System.currentTimeMillis() - offsetMs
-                            onSave(targetTs)
+                            onSave(name, targetTs, cigarettes, price)
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = PrimaryMint),
                         shape = RoundedCornerShape(12.dp)
@@ -2409,9 +2633,1095 @@ private fun getTimelineItems(): List<HealthMilestone> {
     )
 }
 
-
-
 private fun formatEpochTime(epoch: Long): String {
     val sdf = SimpleDateFormat("dd MMM, hh:mm a", Locale.getDefault())
     return sdf.format(Date(epoch))
+}
+
+@Composable
+fun SOSGroundingDialog(
+    onDismiss: () -> Unit,
+    onLogCrisisResisted: (String, String, String) -> Unit
+) {
+    var activeTab by remember { mutableStateOf(0) } // 0 to 4 represent 5 steps
+    val haptic = LocalHapticFeedback.current
+
+    // Keep overall steps checked state
+    var step1Completed by remember { mutableStateOf(false) }
+    var step2Completed by remember { mutableStateOf(false) }
+    var step3Completed by remember { mutableStateOf(false) }
+    var step4Completed by remember { mutableStateOf(false) }
+
+    // TIMER states
+    var secondsLeft by remember { mutableStateOf(180) }
+    var isTimerRunning by remember { mutableStateOf(true) }
+
+    LaunchedEffect(isTimerRunning) {
+        if (isTimerRunning) {
+            while (secondsLeft > 0) {
+                delay(1000L)
+                secondsLeft--
+            }
+        }
+    }
+
+    // Step 1: Water states
+    var sipsCount by remember { mutableStateOf(0) }
+    LaunchedEffect(sipsCount) {
+        if (sipsCount >= 3) {
+            step1Completed = true
+        }
+    }
+
+    // Step 2: Breathing states
+    var breathCycleCompleted by remember { mutableStateOf(0) }
+    var breathingPhase by remember { mutableStateOf("নিষ্ক্রিয়") }
+    var breathProgress by remember { mutableStateOf(0f) }
+    var breathingIsActive by remember { mutableStateOf(false) }
+
+    LaunchedEffect(breathingIsActive) {
+        if (breathingIsActive) {
+            while (breathCycleCompleted < 3) {
+                // Inhale 4s
+                breathingPhase = "শ্বাস নিন (Inhale) 🫁"
+                for (i in 1..40) {
+                    if (!breathingIsActive) break
+                    breathProgress = i / 40f
+                    delay(100L)
+                }
+                if (!breathingIsActive) break
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                // Hold 4s
+                breathingPhase = "ধরে রাখুন (Hold) 🔒"
+                breathProgress = 1f
+                delay(4000L)
+                if (!breathingIsActive) break
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                // Exhale 5s
+                breathingPhase = "শ্বাস ত্যাগ করুন (Exhale) 🌬️"
+                for (i in 40 downTo 1) {
+                    if (!breathingIsActive) break
+                    breathProgress = i / 40f
+                    delay(125L)
+                }
+                if (!breathingIsActive) break
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+
+                breathCycleCompleted++
+            }
+            if (breathCycleCompleted >= 3) {
+                step2Completed = true
+                breathingIsActive = false
+                breathingPhase = "সম্পূর্ণ!"
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+        } else {
+            breathingPhase = "নিষ্ক্রিয়"
+            breathProgress = 0f
+        }
+    }
+
+    // Step 3: Sensory Grounding Game checkboxes/toggles
+    var seeList = remember { mutableStateListOf(false, false, false, false, false) }
+    var feelList = remember { mutableStateListOf(false, false, false, false) }
+    var hearList = remember { mutableStateListOf(false, false, false) }
+    var smellList = remember { mutableStateListOf(false, false) }
+    var thinkChecked by remember { mutableStateOf(false) }
+
+    val totalSensoryItems = 15
+    val completedSensoryItems = seeList.count { it } + feelList.count { it } + hearList.count { it } + smellList.count { it } + (if (thinkChecked) 1 else 0)
+    
+    LaunchedEffect(completedSensoryItems) {
+        if (completedSensoryItems >= totalSensoryItems) {
+            step3Completed = true
+        }
+    }
+
+    // Step 4: Affirmation
+    val resolutionQuotes = remember {
+        listOf(
+            "“ can you believe it? বিষাক্ত নিকোটিন আমার ইচ্ছাশক্তির চেয়ে শক্তিশালী নয়। আমি আজ জিতবই।”",
+            "“আমি আমার সুন্দর ফুসফুস ও আদরের পরিবারকে সীমাহীন ভালবাসি, cigaretteকে নয়।”",
+            "“প্রতিটি সেকেন্ডের জয় আমাকে ধূমপানমুক্ত চমৎকার জীবনের দিকে নিয়ে যাচ্ছে।”",
+            "“নেশা বা সাময়িক তাড়না ক্ষণস্থায়ী, কিন্তু আমার সুস্থ থাকার তৃপ্তি চিরস্থায়ী।”",
+            "“আমার দেহ একটি পবিত্র মন্দির, একে নিকোটিনের ধোঁয়ায় দগ্ধ হতে দেবো না।”",
+            "“আমি শক্তিশালী, আমি স্বাধীন, আমি আজকের যুদ্ধে একজন সফল বিজয়ী।”"
+        )
+    }
+    var currentQuoteIdx by remember { mutableStateOf(0) }
+    var resolutionAccepted by remember { mutableStateOf(false) }
+    LaunchedEffect(resolutionAccepted) {
+        if (resolutionAccepted) {
+            step4Completed = true
+        }
+    }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(4.dp)
+                .shadow(16.dp, RoundedCornerShape(28.dp)),
+            shape = RoundedCornerShape(28.dp),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(18.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                // Warning badge header
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(TerracottaWarn.copy(alpha = 0.12f), CircleShape),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Warning,
+                            contentDescription = "SOS Header Alert",
+                            tint = TerracottaWarn,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                    Spacer(modifier = Modifier.width(10.dp))
+                    Text(
+                        text = "তীব্র ইচ্ছা প্রশমন গাইড (SOS)",
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black,
+                        color = TerracottaWarn
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(14.dp))
+
+                // Beautiful Progressive Horizontal Stepper Bar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val stepTitles = listOf("১. জল", "২. শ্বাস", "৩. পঞ্চইন্দ্রিয়", "৪. সংকল্প", "৫. টাইমার")
+                    val stepStatus = listOf(step1Completed, step2Completed, step3Completed, step4Completed, secondsLeft == 0)
+
+                    stepTitles.forEachIndexed { idx, label ->
+                        val isActive = activeTab == idx
+                        val isDone = stepStatus[idx]
+                        
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable {
+                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                    activeTab = idx
+                                }
+                                .padding(vertical = 4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(26.dp)
+                                    .background(
+                                        when {
+                                            isDone -> PrimaryMint
+                                            isActive -> TerracottaWarn.copy(alpha = 0.9f)
+                                            else -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                                        },
+                                        CircleShape
+                                    ),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (isDone) {
+                                    Icon(
+                                        imageVector = Icons.Default.Check,
+                                        contentDescription = "Done",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                } else {
+                                    Text(
+                                        text = (idx + 1).toString(),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (isActive) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                    )
+                                }
+                            }
+                            Spacer(modifier = Modifier.height(3.dp))
+                            Text(
+                                text = label,
+                                fontSize = 9.sp,
+                                fontWeight = if (isActive) FontWeight.ExtraBold else FontWeight.Medium,
+                                color = if (isActive) TerracottaWarn else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        
+                        if (idx < 4) {
+                            Box(
+                                modifier = Modifier
+                                    .width(6.dp)
+                                    .height(1.dp)
+                                    .background(
+                                        if (isDone) PrimaryMint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+                                    )
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Scrollable container for different active pages
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f, fill = false)
+                ) {
+                    when (activeTab) {
+                        0 -> {
+                            // Page 1: Water hydration simulation game
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "💧 ১ গ্লাস ঠান্ডা পানির স্পর্শ",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "ঠান্ডা পানি মুখের ও জিভকে শান্ত করে এবং ধূমপানের তীব্র ইচ্ছে কমিয়ে দেয়। অন্তত ৩ চুমুক পানি পান করে সেশনটি সফল করুন।",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 15.sp,
+                                    modifier = Modifier.padding(horizontal = 8.dp)
+                                )
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                // Interactive glass canvas
+                                Box(
+                                    modifier = Modifier
+                                        .size(100.dp, 130.dp)
+                                        .border(3.dp, MaterialTheme.colorScheme.onSurface.copy(alpha = 0.15f), RoundedCornerShape(bottomStart = 16.dp, bottomEnd = 16.dp, topStart = 4.dp, topEnd = 4.dp))
+                                        .background(Color.Transparent)
+                                        .padding(4.dp),
+                                    contentAlignment = Alignment.BottomCenter
+                                ) {
+                                    val waterPercent = (3 - sipsCount) / 3f
+                                    val waveHeightAnim by animateFloatAsState(
+                                        targetValue = waterPercent,
+                                        animationSpec = tween(durationMillis = 800)
+                                    )
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .fillMaxHeight(waveHeightAnim)
+                                            .clip(RoundedCornerShape(bottomStart = 12.dp, bottomEnd = 12.dp))
+                                            .background(
+                                                Brush.verticalGradient(
+                                                    colors = listOf(
+                                                        Color(0xFF81D4FA),
+                                                        Color(0xFF0288D1)
+                                                    )
+                                                )
+                                            )
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center
+                                ) {
+                                    Text(
+                                        text = if (sipsCount >= 3) "সম্পূর্ণ! আপনি সফলভাবে ঠান্ডা পানি পান করেছেন। 🎉" else "নেওয়া চুমুক: $sipsCount / ৩ বার",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = if (sipsCount >= 3) PrimaryMint else MaterialTheme.colorScheme.onBackground
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                Button(
+                                    onClick = {
+                                        if (sipsCount < 3) {
+                                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                            sipsCount++
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (sipsCount >= 3) PrimaryMint else AccentSky
+                                    ),
+                                    shape = RoundedCornerShape(14.dp),
+                                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(imageVector = Icons.Default.Favorite, contentDescription = "Sip", tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = if (sipsCount >= 3) "ধাপ ১ শেষ (পরের ধাপে যান) 👍" else "এক ঢোক পানি পান করুন (চুমুক দিন) 🥛",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        1 -> {
+                            // Page 2: Breathing circles
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "🌬️ ৩ বার গভীর ফুসফুসের শ্বাসাঘাত",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "৫ সেকেন্ড বুক ভরে শ্বাস টেনে, ৪ সেকেন্ড ধরে রাখুন এবং ধীরে ধীরে মুখ দিয়ে ৮ সেকেন্ড জুড়ে ছাড়ুন।",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 14.sp
+                                )
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                // Pulsing core visualizer
+                                val breathScaleAnim by animateFloatAsState(
+                                    targetValue = if (breathingIsActive) 1f + (breathProgress * 0.8f) else 1f,
+                                    animationSpec = tween(durationMillis = 100)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .size(130.dp)
+                                        .shadow(4.dp, CircleShape)
+                                        .graphicsLayer {
+                                            scaleX = breathScaleAnim
+                                            scaleY = breathScaleAnim
+                                        }
+                                        .clip(CircleShape)
+                                        .background(
+                                            Brush.radialGradient(
+                                                colors = listOf(
+                                                    PrimaryMint.copy(alpha = 0.5f),
+                                                    AccentSky.copy(alpha = 0.2f)
+                                                )
+                                            )
+                                        ),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(
+                                            imageVector = Icons.Default.Refresh,
+                                            contentDescription = "Breath Loop",
+                                            tint = PrimaryMint,
+                                            modifier = Modifier.size(28.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = breathingPhase,
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.ExtraBold,
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            textAlign = TextAlign.Center
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(24.dp))
+
+                                Text(
+                                    text = if (breathCycleCompleted >= 3) "ধাপটি সফলভাবে ৩ বার সম্পন্ন হয়েছে! 🎉" else "সম্পন্ন চক্র: $breathCycleCompleted বার / ৩ বার",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (breathCycleCompleted >= 3) PrimaryMint else MaterialTheme.colorScheme.onBackground
+                                )
+
+                                Spacer(modifier = Modifier.height(14.dp))
+
+                                Button(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        if (breathCycleCompleted < 3) {
+                                            breathingIsActive = !breathingIsActive
+                                        }
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (breathingIsActive) TerracottaWarn else PrimaryMint
+                                    ),
+                                    shape = RoundedCornerShape(14.dp),
+                                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                                ) {
+                                    Text(
+                                        text = when {
+                                            breathCycleCompleted >= 3 -> "ধাপ ২ শেষ (পরের ধাপে যান) 👍"
+                                            breathingIsActive -> "অনুশীলন বন্ধ করুন ⏸️"
+                                            else -> "শ্বাস শুরু করার টাইমার সচল করুন 🫁"
+                                        },
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color.White
+                                    )
+                                }
+                            }
+                        }
+
+                        2 -> {
+                            // Page 3: Cognitive sensory mini game
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "🧠 ৫-৪-৩-২-১ পঞ্চ-ইন্দ্রিয় গ্রাউন্ডিং",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Text(
+                                    text = "প্রতিটি বক্স স্পর্শ করে বর্তমানে আপনার চারপাশে থাকা বিষয়গুলো খেয়াল করুন এবং শান্ত হন। ($completedSensoryItems/$totalSensoryItems শেষ)",
+                                    fontSize = 10.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 13.sp,
+                                    modifier = Modifier.padding(bottom = 8.dp)
+                                )
+
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(210.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .border(1.dp, MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
+                                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.15f))
+                                ) {
+                                    val scrollState = rememberScrollState()
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .verticalScroll(scrollState)
+                                            .padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                                    ) {
+                                        // 5 See
+                                        Column {
+                                            Text("👁️ ৫টি দৃশ্যমান সাধারণ বস্তু (ট্যাপ করুন):", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TerracottaWarn)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                val seeNames = listOf("দেয়াল ঘড়ি", "হাতপাখা", "মোবাইল", "টেবিল", "ফুলদানী")
+                                                seeNames.forEachIndexed { sIdx, name ->
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(if (seeList[sIdx]) PrimaryMint.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface)
+                                                            .border(1.dp, if (seeList[sIdx]) PrimaryMint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                                                            .clickable {
+                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                seeList[sIdx] = !seeList[sIdx]
+                                                            }
+                                                            .padding(vertical = 6.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(text = name, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold, color = if (seeList[sIdx]) PrimaryMint else MaterialTheme.colorScheme.onBackground)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 4 Feel
+                                        Column {
+                                            Text("🤚 ৪টি শারীরিক স্পর্শ ও অনুভূতি:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentSky)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                val feelNames = listOf("পায়ের নীচে মাটি", "শরীরে হাওয়া", "কাপড়ের ওজন", "ফোনের মসৃণতা")
+                                                feelNames.forEachIndexed { fIdx, name ->
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(if (feelList[fIdx]) AccentSky.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface)
+                                                            .border(1.dp, if (feelList[fIdx]) AccentSky else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                                                            .clickable {
+                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                feelList[fIdx] = !feelList[fIdx]
+                                                            }
+                                                            .padding(vertical = 6.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(text = name, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold, color = if (feelList[fIdx]) AccentSky else MaterialTheme.colorScheme.onBackground)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 3 Hear
+                                        Column {
+                                            Text("👂 ৩টি পারিপার্শ্বিক শব্দ ও সুর:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = PrimaryMint)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                val hearNames = listOf("পাখার ঘূর্ণন", "যানবাহনের আওয়াজ", "পাখির ডাক")
+                                                hearNames.forEachIndexed { hIdx, name ->
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(if (hearList[hIdx]) PrimaryMint.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface)
+                                                            .border(1.dp, if (hearList[hIdx]) PrimaryMint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                                                            .clickable {
+                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                hearList[hIdx] = !hearList[hIdx]
+                                                            }
+                                                            .padding(vertical = 6.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(text = name, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold, color = if (hearList[hIdx]) PrimaryMint else MaterialTheme.colorScheme.onBackground)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 2 Smell
+                                        Column {
+                                            Text("👃 ২টি ঘ্রাণ অনুভব করার চেষ্টা:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.primary)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                                val smellNames = listOf("ঘরের সতেজ হাওয়া", "চায়ের হালকা সুবাস")
+                                                smellNames.forEachIndexed { smIdx, name ->
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .weight(1f)
+                                                            .clip(RoundedCornerShape(6.dp))
+                                                            .background(if (smellList[smIdx]) MaterialTheme.colorScheme.primary.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface)
+                                                            .border(1.dp, if (smellList[smIdx]) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                                                            .clickable {
+                                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                                smellList[smIdx] = !smellList[smIdx]
+                                                            }
+                                                            .padding(vertical = 6.dp),
+                                                        contentAlignment = Alignment.Center
+                                                    ) {
+                                                        Text(text = name, fontSize = 8.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, fontWeight = FontWeight.Bold, color = if (smellList[smIdx]) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onBackground)
+                                                    }
+                                                }
+                                            }
+                                        }
+
+                                        // 1 Think
+                                        Column {
+                                            Text("✨ ১টি ইতিবাচক ধ্রুব সত্য সত্যতা:", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TerracottaWarn)
+                                            Spacer(modifier = Modifier.height(4.dp))
+                                            Box(
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(if (thinkChecked) TerracottaWarn.copy(alpha = 0.15f) else MaterialTheme.colorScheme.surface)
+                                                    .border(1.dp, if (thinkChecked) TerracottaWarn else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f), RoundedCornerShape(6.dp))
+                                                    .clickable {
+                                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                        thinkChecked = !thinkChecked
+                                                    }
+                                                    .padding(vertical = 8.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text(text = "“আমার সুস্থ থাকা ও বেঁচে থাকা তামাকের চেয়ে অনেক দামী”", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = if (thinkChecked) TerracottaWarn else MaterialTheme.colorScheme.onBackground, modifier = Modifier.padding(horizontal = 6.dp))
+                                            }
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(10.dp))
+                                Text(
+                                    text = if (step3Completed) "ধাপ ৩ সফল! মনঃসংযোগ সম্পূর্ণ ঘুরে গেছে। 🎉" else "আরও ${totalSensoryItems - completedSensoryItems}টি অনুভব ট্যাপ করতে বাকি",
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = if (step3Completed) PrimaryMint else MaterialTheme.colorScheme.onBackground
+                                )
+                            }
+                        }
+
+                        3 -> {
+                            // Page 4: Strategic Motivational Resolution Quotes card
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "✊ শপথ ও অনুপ্রেরণার সংকল্প",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "ইতিবাচক সংকল্প আপনার ভেতরের ইচ্ছাশক্তিকে জাগ্রত ও সচেতন করবে। বাণীটি গভীর বিশ্বাসের সাথে পাঠ করুন:",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 15.sp
+                                )
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                Card(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .border(2.dp, PrimaryMint.copy(alpha = 0.2f), RoundedCornerShape(16.dp)),
+                                    colors = CardDefaults.cardColors(containerColor = PrimaryMint.copy(alpha = 0.05f)),
+                                    shape = RoundedCornerShape(16.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(20.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Star,
+                                            contentDescription = "Idea Icon",
+                                            tint = PrimaryMint,
+                                            modifier = Modifier.size(26.dp)
+                                        )
+                                        Spacer(modifier = Modifier.height(10.dp))
+                                        Text(
+                                            text = resolutionQuotes[currentQuoteIdx],
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            textAlign = TextAlign.Center,
+                                            lineHeight = 18.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(14.dp))
+                                        
+                                        // Rotation button
+                                        TextButton(
+                                            onClick = {
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                currentQuoteIdx = (currentQuoteIdx + 1) % resolutionQuotes.size
+                                            }
+                                        ) {
+                                            Icon(imageVector = Icons.Default.Refresh, contentDescription = "Next Quote", modifier = Modifier.size(16.dp), tint = PrimaryMint)
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            Text("পরবর্তী শক্তিশালী বাণী 🔄", fontSize = 11.sp, color = PrimaryMint, fontWeight = FontWeight.Bold)
+                                        }
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                Button(
+                                    onClick = {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        resolutionAccepted = true
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (resolutionAccepted) PrimaryMint else TerracottaWarn
+                                    ),
+                                    shape = RoundedCornerShape(14.dp),
+                                    modifier = Modifier.fillMaxWidth().height(44.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(imageVector = Icons.Default.Check, contentDescription = "Resolution Accept", tint = Color.White, modifier = Modifier.size(16.dp))
+                                        Spacer(modifier = Modifier.width(6.dp))
+                                        Text(
+                                            text = if (resolutionAccepted) "সংকল্পবদ্ধ হয়েছি! 👍" else "আমি সংকল্পে অবিচল থাকবো ✊",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = Color.White
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        4 -> {
+                            // Page 5: Master Countdown and psychological cooling indicators
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "⏳ ইচ্ছা নিরাময়ের ১৮০ সেকেন্ড টাইমার",
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onBackground
+                                )
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text(
+                                    text = "বিজ্ঞান প্রমাণ করে ধূমপানের তীব্র ইচ্ছেটি ৩ মিনিটের বেশি স্থায়ী হয় না। নিজেকে বিজয়ী করতে টাইমার সমাপ্ত হতে দিন।",
+                                    fontSize = 11.sp,
+                                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 14.sp
+                                )
+
+                                Spacer(modifier = Modifier.height(20.dp))
+
+                                val minLeft = secondsLeft / 60
+                                val secLeft = secondsLeft % 60
+                                val timeLabel = String.format(Locale.getDefault(), "%02d:%02d", minLeft, secLeft)
+                                
+                                // Large cooling timer display
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(TerracottaWarn.copy(alpha = 0.05f))
+                                        .border(2.dp, TerracottaWarn.copy(alpha = 0.15f), RoundedCornerShape(16.dp))
+                                        .padding(16.dp)
+                                ) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Text(
+                                            text = timeLabel,
+                                            fontSize = 42.sp,
+                                            fontWeight = FontWeight.Black,
+                                            color = TerracottaWarn,
+                                            letterSpacing = 2.sp
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "মস্তিষ্ক শীতল হচ্ছে...",
+                                            fontSize = 10.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = TerracottaWarn.copy(alpha = 0.8f)
+                                        )
+                                    }
+                                }
+
+                                Spacer(modifier = Modifier.height(16.dp))
+
+                                // Dynamic Psychological facts box
+                                Card(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)),
+                                    shape = RoundedCornerShape(12.dp)
+                                ) {
+                                    Column(
+                                        modifier = Modifier.padding(12.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        val quoteText = when {
+                                            secondsLeft > 140 -> "🧠 ১ম মিনিট: আপনার লালা ও গলার স্নায়ুগুলো শান্ত হতে শুরু করেছে। বিষাক্ত রিসেপ্টর সংকেত দুর্বল হয়ে যাচ্ছে।"
+                                            secondsLeft > 80 -> "🧬 ২য় মিনিট: ফুসফুসে জমে থাকা কার্বন মনোক্সাইডের টান কেটে অক্সিজেনের প্রবাহ সুষম হচ্ছে। স্নায়বিক উত্তেজনা স্বাভাবিক হচ্ছে।"
+                                            secondsLeft > 0 -> "💪 ৩য় মিনিট: চরম সীমানা পার হয়েছে! হরমোনের তাড়না এখন অত্যন্ত ক্ষীণ। আপনার মস্তিষ্ক ডোপামিনের জাল ভেঙে জয় পেলো!"
+                                            else -> "🏆 অভিনন্দন! সম্পূর্ণ ১৮০ সেকেন্ডের কঠিন স্নায়বীয় মনস্তাত্ত্বিক যুদ্ধে আপনি বিজয়ী লড়াই লড়েছেন!"
+                                        }
+                                        Text(
+                                            text = quoteText,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            color = MaterialTheme.colorScheme.onBackground,
+                                            textAlign = TextAlign.Center,
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(18.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.06f))
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Action buttons footer
+                val totalStepsCompleted = (if (step1Completed) 1 else 0) + (if (step2Completed) 1 else 0) + (if (step3Completed) 1 else 0) + (if (step4Completed) 1 else 0)
+                val isFullySuccess = totalStepsCompleted >= 4 || secondsLeft == 0
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    TextButton(
+                        onClick = onDismiss,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Text(
+                            text = "বন্ধ করুন ❌",
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            if (isFullySuccess) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                onLogCrisisResisted("SOS তীব্র মানসিক লড়াকু", "তীব্র", "গ্রাউন্ডিং কিট ও тайமர்")
+                            } else {
+                                onDismiss()
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = if (isFullySuccess) PrimaryMint else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.08f)
+                        ),
+                        shape = RoundedCornerShape(14.dp),
+                        modifier = Modifier.weight(1.5f)
+                    ) {
+                        Text(
+                            text = if (isFullySuccess) "আমি বিজয়ী! 🏆" else "পদক্ষেপ শেষ হয়নি",
+                            fontWeight = FontWeight.Black,
+                            fontSize = 12.sp,
+                            color = if (isFullySuccess) Color.White else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+@Composable
+fun QuitAnalyticsDashboard(logs: List<CravingLog>) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .shadow(4.dp, RoundedCornerShape(24.dp)),
+        shape = RoundedCornerShape(24.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp)
+        ) {
+            // Header with custom icon
+            Row(
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .background(AccentSky.copy(alpha = 0.12f), RoundedCornerShape(8.dp))
+                        .padding(6.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Menu,
+                        contentDescription = "Analytics Icon",
+                        tint = AccentSky,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+                Spacer(modifier = Modifier.width(10.dp))
+                Column {
+                    Text(
+                        text = "📊 ক্র্যাভিং ও ট্রিগার উপাত্ত বিশ্লেষণ",
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground
+                    )
+                    Text(
+                        text = "আপনার অবচেতনের ধূমপানের ইচ্ছা ও তার কারণ সমূহের বিশ্লেষণ",
+                        fontSize = 9.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.45f)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
+            if (logs.isEmpty()) {
+                // Friendly advice for empty logs
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 14.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Info,
+                        contentDescription = "No analytic logs empty",
+                        tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.2f),
+                        modifier = Modifier.size(36.dp)
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "কোনো ক্র্যাভিং উপাত্ত এখনো রেকর্ড করা হয়নি।",
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                        textAlign = TextAlign.Center
+                    )
+                    Text(
+                        text = "ধূমপানের ইচ্ছা এড়ানো প্রতিবার ‘ইচ্ছে সামলেছি’ বা ‘SOS’ বাটনটি প্রেস করে উপাত্ত যোগ করুন। ধীরে ধীরে আপনার প্রধান মানসিক কারণ বিশ্লেষণ এখানে সচল হবে।",
+                        fontSize = 10.sp,
+                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                        textAlign = TextAlign.Center,
+                        lineHeight = 14.sp,
+                        modifier = Modifier.padding(horizontal = 14.dp)
+                    )
+                }
+            } else {
+                val totalCount = logs.size.toFloat()
+
+                // 1. Top Triggers Breakdown
+                val triggerFreq = logs.groupBy { it.trigger }.mapValues { it.value.size }.toList().sortedByDescending { it.second }
+                
+                Text(
+                    text = "শীর্ষ ধূমপানের ট্রিগার পরিস্থিতি:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = PrimaryMint
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    triggerFreq.take(4).forEach { (trigger, count) ->
+                        val ratio = count / totalCount
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.02f), RoundedCornerShape(8.dp))
+                                .padding(horizontal = 10.dp, vertical = 6.dp)
+                        ) {
+                            Text(
+                                text = trigger,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.weight(1.5f),
+                                maxLines = 1,
+                                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            )
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Column(modifier = Modifier.weight(2f)) {
+                                LinearProgressIndicator(
+                                    progress = { ratio },
+                                    color = PrimaryMint,
+                                    trackColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.04f),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(4.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${(ratio * 100).toInt()}% ($count बार)",
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Black,
+                                color = PrimaryMint,
+                                modifier = Modifier.width(50.dp),
+                                textAlign = TextAlign.End
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 2. Severity Profile (তীব্র বনাম মাঝারি বনাম সামান্য)
+                val severityGroups = logs.groupBy { it.severity.trim() }.mapValues { it.value.size }
+                val highCount = severityGroups["তীব্র"] ?: 0
+                val midCount = severityGroups["মাঝারি"] ?: 0
+                val lowCount = (severityGroups["সামান্য"] ?: 0) + (severityGroups["সাধারণ"] ?: 0)
+
+                Text(
+                    text = "ক্র্যাভিং তীব্রতার বিন্যাস:",
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = TerracottaWarn
+                )
+                Spacer(modifier = Modifier.height(6.dp))
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // High Card
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = TerracottaWarn.copy(alpha = 0.02f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, TerracottaWarn.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(text = "🔥 তীব্র", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = TerracottaWarn)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = "$highCount বার", fontSize = 12.sp, fontWeight = FontWeight.Black, color = TerracottaWarn)
+                            Text(text = "${((highCount / totalCount) * 100).toInt()}%", fontSize = 9.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+                        }
+                    }
+
+                    // Mid Card
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = AccentSky.copy(alpha = 0.02f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, AccentSky.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(text = "⚡ মাঝারি", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = AccentSky)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = "$midCount বার", fontSize = 12.sp, fontWeight = FontWeight.Black, color = AccentSky)
+                            Text(text = "${((midCount / totalCount) * 100).toInt()}%", fontSize = 9.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+                        }
+                    }
+
+                    // Low Card
+                    Card(
+                        modifier = Modifier.weight(1f),
+                        colors = CardDefaults.cardColors(containerColor = SecondaryEmerald.copy(alpha = 0.02f)),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, SecondaryEmerald.copy(alpha = 0.1f)),
+                        shape = RoundedCornerShape(12.dp)
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(8.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(text = "🌱 সামান্য", fontSize = 10.sp, fontWeight = FontWeight.Bold, color = SecondaryEmerald)
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(text = "$lowCount বার", fontSize = 12.sp, fontWeight = FontWeight.Black, color = SecondaryEmerald)
+                            Text(text = "${((lowCount / totalCount) * 100).toInt()}%", fontSize = 9.sp, color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.5f))
+                        }
+                    }
+                }
+            }
+        }
+    }
 }

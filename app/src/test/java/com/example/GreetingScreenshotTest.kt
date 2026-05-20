@@ -10,8 +10,7 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import com.example.data.QuitProfile
-import com.example.ui.CountdownDashboard
-import com.example.ui.HeroBanner
+import com.example.ui.CountdownWheelDashboard
 import com.example.ui.TimeRemaining
 import com.example.ui.theme.MyApplicationTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
@@ -39,17 +38,7 @@ class GreetingScreenshotTest {
             .fillMaxWidth()
             .padding(16.dp)
         ) {
-          HeroBanner(
-            profile = QuitProfile(
-              id = 0,
-              quitTimestamp = System.currentTimeMillis() - 1000 * 60 * 60 * 5,
-              userName = "পরীক্ষামূলক যোদ্ধা",
-              cravingsResisted = 3,
-              breathsCompleted = 2
-            )
-          )
-          Spacer(modifier = Modifier.height(16.dp))
-          CountdownDashboard(
+          CountdownWheelDashboard(
             timePassed = TimeRemaining(days = 12, hours = 5, minutes = 32, seconds = 19),
             profile = QuitProfile(
               id = 0,
@@ -59,7 +48,8 @@ class GreetingScreenshotTest {
               breathsCompleted = 2
             ),
             onCustomizeClick = {},
-            onResistCraving = {}
+            onOpenLogCraving = {},
+            onOpenSOSClick = {}
           )
         }
       }

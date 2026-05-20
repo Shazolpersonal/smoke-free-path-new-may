@@ -5,7 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [QuitProfile::class, CravingLog::class], version = 2, exportSchema = false)
+@Database(entities = [QuitProfile::class, CravingLog::class], version = 3, exportSchema = false)
 abstract class QuitDatabase : RoomDatabase() {
     abstract fun quitDao(): QuitDao
 
@@ -20,7 +20,7 @@ abstract class QuitDatabase : RoomDatabase() {
                     QuitDatabase::class.java,
                     "mukto_jibon_database"
                 )
-                .fallbackToDestructiveMigration() // Automatic development schema regeneration
+                .fallbackToDestructiveMigration(true) // Automatic development schema regeneration
                 .build()
                 INSTANCE = instance
                 instance
