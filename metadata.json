@@ -1,0 +1,6 @@
+{
+  "name": "মুক্ত জীবন",
+  "description": "একটি আধুনিক ও কার্যকর অ্যাপ যা আপনাকে ধূমপান ছাড়তে, স্বাস্থ্যের উন্নতি ট্র্যাক করতে এবং সুস্থ জীবনযাপন করতে সাহায্য করবে।",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
