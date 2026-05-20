@@ -8,6 +8,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
@@ -32,6 +34,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
@@ -1401,105 +1404,385 @@ fun EducationalTabsSection() {
                 2 -> QuickTipsToQuitContent()
             }
         }
+
+        Spacer(modifier = Modifier.height(20.dp))
+        HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.08f))
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Trigger Selector Section (Interactive Tool)
+        Text(
+            text = "⚡ আপনার মূল ধূমপানের ট্রিগার সনাক্ত করুন",
+            fontSize = 13.sp,
+            fontWeight = FontWeight.ExtraBold,
+            color = MaterialTheme.colorScheme.onBackground
+        )
+        Spacer(modifier = Modifier.height(4.dp))
+        Text(
+            text = "ধূমপানের ইচ্ছেগুলো একেক সময় একেক কারণে অনিয়ন্ত্রিত হয়। আপনার ক্ষেত্রে কোনটি বেশি সচল? সিলেক্ট করে তাৎক্ষণিক বৈজ্ঞানিক সমাধানটি জেনে নিন:",
+            fontSize = 11.sp,
+            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+            lineHeight = 15.sp
+        )
+
+        Spacer(modifier = Modifier.height(12.dp))
+
+        var activeTriggerIndex by remember { mutableStateOf<Int?>(null) }
+        val haptic = LocalHapticFeedback.current
+
+        val triggers = remember {
+            listOf(
+                Triple("☕", "চা/কফি পরবর্তী", "সকালের বা বিকেলের আড্ডায় চায়ের বা কফির পর ধূমপানের ইচ্ছা জাগলে"),
+                Triple("💼", "কাজের ক্লান্তি ও স্ট্রেস", "অফিস বা পড়ার অতিরিক্ত চাপে বা টেনশনে নিজেকে সতেজ রাখতে"),
+                Triple("👥", "বন্ধুদের অনুরোধ / সোশ্যাল", "আড্ডায় বা বন্ধুদের দেখাদেখি অবচেতন মনের সামাজিক ট্রিগার"),
+                Triple("🛋️", "অবসর সময় ও অলসতা", "অলস বসে থাকা অবস্থায় হাত ও মুখ অলস থাকার ট্রিগার")
+            )
+        }
+
+        // Horizontal scrolling chips
+        Row(
+            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            triggers.forEachIndexed { index, trigger ->
+                val isSelected = activeTriggerIndex == index
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(
+                            if (isSelected) PrimaryMint.copy(alpha = 0.15f)
+                            else MaterialTheme.colorScheme.onBackground.copy(alpha = 0.03f)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isSelected) PrimaryMint else Color.Transparent,
+                            shape = RoundedCornerShape(12.dp)
+                        )
+                        .clickable {
+                            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                            activeTriggerIndex = if (isSelected) null else index
+                        }
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        Text(text = trigger.first, fontSize = 14.sp)
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(
+                            text = trigger.second,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = if (isSelected) PrimaryMint else MaterialTheme.colorScheme.onBackground
+                        )
+                    }
+                }
+            }
+        }
+
+        if (activeTriggerIndex != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+
+        AnimatedVisibility(
+            visible = activeTriggerIndex != null,
+            enter = expandVertically(animationSpec = spring()) + fadeIn(),
+            exit = shrinkVertically(animationSpec = spring()) + fadeOut()
+        ) {
+            activeTriggerIndex?.let { index ->
+                val triggerInfo = triggers[index]
+                val scientificSolution = when (index) {
+                    0 -> "১. চায়ের প্রথম চুমুক দিয়ে সিগারেট জ্বালানোর পরিবর্তে লিলি বা লেমনগ্রাস ভেষজ চা পান করুন। অথবা চায়ের পর মুখে সাথে সাথে একটি চুইঙ্গাম বা আদা কুচি দিয়ে দিন যেন হাত ও মুখ সচল থাকে।\n২. চায়ের স্থানটি পরিবর্তন করুন।"
+                    1 -> "১. যখনই অফিসের কাজের চাপ অনুভব করবেন, ৪ সেকেন্ডে বুক ভরে শ্বাস নিন, ৭ সেকেন্ড বুক আটকে রাখুন এবং ৮ সেকেন্ডে মুখ দিয়ে ফুঁ দিয়ে ছাড়ুন (৪-৭-৮ শ্বাসের রুটিন)।\n২. কাজের মাঝখানে ৩ মিনিট হালকা হেঁটে আসুন।"
+                    2 -> "১. বন্ধুদের আড্ডায় সরাসরি হাসিমুখে বলুন: 'আমি ধূমপানমুক্ত জীবন বেছে নিয়েছি এবং আজ আমার ১০ম দিন!' আপনার এই দৃঢ়তা দেখে বন্ধুরা আপনাকে আর অফার করবে না।\n২. আড্ডার প্রথম ১০ মিনিট একটি মাউথ ফ্রেশনার বা লবঙ্গ মুখে রাখুন।"
+                    else -> "১. অবসর সময়ে হাত ফাঁকা লাগলে একটি স্ট্রেস-বল ঘোরান বা বাবল গেম খেলুন বা ডায়েরি লিখুন।\n২. একাকীত্ব কাটাতে কোনো গঠনমূলক কাজে জড়িয়ে পড়ুন বা নিজের রিকভারি স্ট্যাটাসটি স্ক্রিনশট নিয়ে রাখুন।"
+                }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    colors = CardDefaults.cardColors(
+                        containerColor = PrimaryMint.copy(alpha = 0.05f)
+                    ),
+                    border = androidx.compose.foundation.BorderStroke(
+                        width = 1.dp,
+                        color = PrimaryMint.copy(alpha = 0.25f)
+                    )
+                ) {
+                    Column(modifier = Modifier.padding(14.dp)) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Text(text = "💡", fontSize = 16.sp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(
+                                text = "${triggerInfo.second} কাটানোর জাদুকরী বৈজ্ঞানিক কৌশল:",
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                color = PrimaryMint
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = scientificSolution,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
+                            lineHeight = 16.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+                }
+            }
+        }
     }
 }
 
 @Composable
 fun ReasonsToQuitContent() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         EducationalItem(
             icon = "🫁",
-            title = "ফুসফুস ও শ্বাসের ক্ষমতা বাড়ে",
-            description = "ধূমপান ছাড়ার মাত্র কয়েক সপ্তাহের মধ্যে ফুসফুসের কর্মক্ষমতা প্রায় ৩০% বৃদ্ধি পায়। ফলে সিঁড়ি বেয়ে উঠতে বা শারীরিক কসরত করতে গিয়ে হাঁপিয়ে ওঠার প্রবণতা উধাও হয়।"
+            title = "ফুসফুস ও শ্বাসের ক্ষমতা পুনরুদ্ধার",
+            shortDesc = "নিকোটিন ধোঁয়া ফুসফুসের ক্ষমতা কমিয়ে শ্বাস রুখে দেয়।",
+            detailedDesc = "ধূমপান ছাড়ার মাত্র ১২ ঘণ্টার মধ্যে রক্তে ক্ষতিকর কার্বন মনোক্সাইডের মাত্রা স্বাভাবিক হয়ে আসে। প্রথম ৩ মাসের মধ্যে ফুসফুসের কার্যকারিতা প্রায় ৩০% পর্যন্ত বৃদ্ধি পেয়ে কর্মক্ষমতা নিশ্চিত করে।",
+            actionPlan = "যখনই কায়িক পরিশ্রমে বা দ্রুত হাঁটতে গিয়ে সমস্যা অনুভব করবেন, প্রতিদিন সকালে ও রাতে কমপক্ষে ৩ বার করে আমাদের ফুসফুস রিভাইভ ব্রিদিং ব্যায়ামটি সম্পূর্ণ করুন।"
         )
         EducationalItem(
-            icon = "✨",
-            title = "ত্বক ও দাঁতের উজ্জ্বলতা বৃদ্ধি",
-            description = "নিকোটিন রক্তের স্বাভাবিক প্রবাহে বাধা দেয় যা ত্বককে শুষ্ক ও অকালে বুড়িয়ে দেয়। ধূমপানমুক্ত জীবন শুরু করলে ত্বকের স্বাভাবিক আর্দ্রতা ও দাঁতের উজ্জ্বল্য ফিরে আসে।"
+            icon = "💖",
+            title = "রক্তসঞ্চালন ও হৃদযন্ত্রের পরম সুরক্ষা",
+            shortDesc = "নিকোটিন রক্তনালীকে মারাত্মকভাবে কুঞ্চিত ও শক্ত করে তোলে।",
+            detailedDesc = "ধূমপান ত্যাগের মাত্র ২০ মিনিটের মাথায় হৃদস্পন্দন ও রক্তচাপ স্বাভাবিক ধারায় নেমে আসে। ১ বছরের মধ্যে হৃদরোগ বা স্ট্রোকের ঝুঁকি গড়ে শতকরা ৫০ ভাগ পর্যন্ত হ্রাস পায় যা অবিশ্বাস্যভাবে নিরাপদ জীবন উপহার দেয়।",
+            actionPlan = "হৃদস্পন্দনের গতি ও ফুসফুসের রক্তচলাচল নিয়মিত স্বাভাবিক রাখতে দিনে অন্তত ১৫-২০ মিনিট দ্রুত গতিতে হাঁটার অভ্যাস গড়ুন এবং ধূমপানমুক্ত জীবন উপভোগ করুন।"
         )
         EducationalItem(
             icon = "⏳",
-            title = "দীর্ঘ সতেজ জীবনের নিশ্চয়তা",
-            description = "গবেষণায় দেখা গেছে যে ৩৫ বছর বয়সের আগে ধূমপান ছাড়লে মানুষের জীবনের প্রত্যাশিত আয়ুষ্কাল প্রায় ১০ বছর পর্যন্ত বেড়ে যেতে পারে।"
+            title = "১০ বছর পর্যন্ত দীর্ঘ ও সতেজ দীর্ঘায়ু",
+            shortDesc = "৩৫ বছরের পূর্বে তামাক বর্জন করলে ১০ বছর প্রত্যাশিত আয়ু বাড়ে।",
+            detailedDesc = "গবেষণায় প্রতীয়মান হয় যে, যেকোনো বয়সে তামাক বর্জন দীর্ঘস্থায়ী রোগ প্রতিরোধে কার্যকর। ৩৫ বছর বয়সের আগে সম্পূর্ণভাবে তামাক ত্যাগ করতে পারলে একজন ধূমপায়ীর স্বাভাবিক মানুষের তুল্য দীর্ঘায়ু ফিরে পাওয়ার সুযোগ নিশ্চিত হয়।",
+            actionPlan = "আজই আপনার ডায়েরিতে বা আমাদের অ্যাপের অভিযান লগবুকে আপনার লক্ষ্য ও প্রতিশ্রুতি সুন্দরভাবে লিখে রাখুন এবং প্রতিদিন ত্যাগের অগ্রগতিতে শুভকামনা জানান নিজেকে।"
         )
     }
 }
 
 @Composable
 fun HarmfulEffectsContent() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         EducationalItem(
             icon = "☠️",
-            title = "ক্যানসারের মরণঘাতী ঝুঁকি",
-            description = "তামাকে থাকা ক্ষতিকর উপাদান শুধু ফুসফুস নয়, মুখের ক্যানসার, ল্যারিনক্স, গলব্লাডার এবং অগ্ন্যাশয়ে ক্যানসারের ঝুঁকি বহুগুণ বাড়িয়ে তোলে।"
+            title = "মস্তিষ্ক ও চরম ডোপামিন আসক্তির ফাঁদ",
+            shortDesc = "নিকোটিন মস্তিষ্কে কৃত্রিম ডোপামিন ছড়িয়ে মারাত্মক বিভ্রান্তি তৈরি করে।",
+            detailedDesc = "নিকোটিন খুব দ্রুত রক্তের মাধ্যমে মস্তিষ্কে ডোপামিন নামক এক রাসায়নিক উপাদান তৈরি করে অবাস্তব প্রশান্তি জোগায়। দীর্ঘমেয়াদে মগজ নিষ্ক্রিয় হতে থাকে, যা প্রাকৃতিক আনন্দে অনুভূতির ঘাটতি ও আসক্তি তৈরি করে ধূমপানে জিম্মি করে ফেলে।",
+            actionPlan = "ডোপামিন ঘাটতি এড়াতে কফি বা মিষ্টি ফ্লেভার এর পরিবর্তে বেশি করে সতেজ পানি এবং লেবুর রস ও ফলমূল খান যাতে মন সতেজ ও প্রফুল্ল থাকে।"
         )
         EducationalItem(
             icon = "💔",
-            title = "হৃদরোগ ও ব্রেইন স্ট্রোক",
-            description = "নিকোটিন রক্তনালীকে শক্ত ও সংকুচিত করে তোলে। এটি রক্তনালীতে প্লাক জমতে দ্রুত সাহায্য করে, যা মারাত্মক হার্ট অ্যাটাক এবং প্যারালাইসিস স্ট্রোকের অন্যতম প্রধান কারণ।"
+            title = "মরণঘাতী রাসায়নিক ও ধমনীর প্লাক সৃষ্টি",
+            shortDesc = "সিগারেটে থাকা রেশ আর্সেনিক ও সীসা ধমনীদের চিরতরে সংকীর্ণ করে দেয়।",
+            detailedDesc = "ধোঁয়ার সাথে প্রায় ৭০টির অধিক ক্যান্সার-সৃষ্টিকারী ক্ষারক যেমন আর্সেনিক, ক্যাডমিয়াম এবং ফরমালডিহাইড রক্তনালীতে সঞ্চিত হয়ে স্থায়ী প্লাক বা চর্বির স্তর প্রলেপ সৃষ্টি করে, যা হৃদযন্ত্র বিকল বা চিরস্থায়ী প্যারালাইসিস ঘটাতে পারে।",
+            actionPlan = "টক্সিন ও বিষাক্ত ধাতব অংশগুলো শরীর থেকে তাড়াতাড়ি ফিল্টার করে বের করে দিবার লক্ষ্যে দিনে কমপক্ষে ৮-১০ গ্লাস বিশুদ্ধ পানি পান করুন।"
         )
         EducationalItem(
             icon = "💨",
-            title = "যক্ষ্মা ও চিরস্থায়ী শ্বাসকষ্ট (COPD)",
-            description = "ফুসফুসের স্থায়ী মারাত্মক রোগ সিওপিডি (COPD) এর মূল হোতা ধূমপান। এর ফলে ফুসফুসের অ্যালভিওলাই চিরতরে নষ্ট হয়ে শ্বাস নেবার ক্ষমতা কমে যায়।"
+            title = "ফুসফুসের স্থায়ী অ্যালভিওলাই বিকল (COPD)",
+            shortDesc = "স্থায়ী কফ এবং সিওপিডি (COPD) ধমকের মতো ফুসফুসের পথ বন্ধ করে দেয়।",
+            detailedDesc = "ধূমপান ফুসফুসের ক্ষুদ্র বায়ুথলি বা ‘অ্যালভিওলাই’ চিরতরে নষ্ট করে দেয়। ফলে বাতাস থেকে অক্সিজেন গ্রহণের সক্ষমতা কমতে কমতে একসময় অবশ কফ ও সিওপিডি নামক যন্ত্রণাদায়ক রোগে মানুষকে মৃত্যুর কোলে টেনে নেয়।",
+            actionPlan = "ধূমপানের উদ্রেক হওয়া বাতাসে দীর্ঘ ক্ষণ ধরে বাইরে খোলা আকাশের নিচে মৃদু হাত-পা নেড়ে বুক ভরে ফ্রেশ অক্সিজেন নিয়ে বুক প্রসারিত করার চেষ্টা করুন।"
         )
     }
 }
 
 @Composable
 fun QuickTipsToQuitContent() {
-    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         EducationalItem(
             icon = "⏱️",
-            title = "১০ মিনিটের সুবর্ণ সূত্র (Delay Rule)",
-            description = "যখনই ধূমপানের তীব্র ইচ্ছে জাগবে, ঘড়ির দিকে তাকিয়ে ১০ মিনিট অপেক্ষা করুন। ধূমপানের তীব্র অনুভূতিটি সাধারণত ৩ থেকে ৫ মিনিটের বেশি টিকে থাকে না।"
+            title = "১০ মিনিটের সুবর্ণ বৈজ্ঞানিক ‘ডিলে’ রুল",
+            shortDesc = "তীব্র ইচ্ছে জাগলে ঘড়ি মিলিয়ে ১০ মিনিট অপেক্ষা অত্যন্ত কার্যকর।",
+            detailedDesc = "তামাকের আকাঙ্ক্ষা বা ক্র্যাভিং মস্তিষ্কে স্থায়ী ও নিয়ন্ত্রণহীন অনুভূতি নয়, এটি সাধারণত ৩ থেকে সর্বোচ্চ ৫ মিনিটের মধ্যে প্রশমিত হয়ে যায়। তাই এই মুহূর্তটি সচেতনতায় পার করা গেলে আসক্তি এড়ানো অত্যন্ত সহজ হয়।",
+            actionPlan = "তীব্র ক্র্যাভিং হলে সাথে সাথে আমাদের ‘ইচ্ছে সামলেছি’ অভিযান বুথ এ ক্লিক করুন এবং নিজের হাতকে সচল রাখতে একটু জোরে জোরে নিশ্বাস টানুন।"
         )
         EducationalItem(
             icon = "🫚",
-            title = "নিকোটিনের বিকল্প মুখরোচক খাবার",
-            description = "হাতে এবং মুখে কিছু রাখার বিকল্প অভ্যাস করুন। মুখের স্বাদ পরিবর্তন করার জন্য লবঙ্গ, কাঁচা আদা বা পুদিনা চিবানো চমৎকার সাহায্যকারী।"
+            title = "হাতে ও মুখে বিকল্প স্বাদের ভেষজ কুচি চিবানো",
+            shortDesc = "লবঙ্গ, ললিপপ, এলাচ বা আদা চিবিয়ে মুখের স্বাদ বৈপ্লবিক বদলানো সম্ভব।",
+            detailedDesc = "যখন হাত বা মুখের পেশিগুলো সিগারেটের অভ্যাস খোঁজে, তখন আদা কুচি, লবঙ্গ বা পুদিনা পাতা মুখে দিলে মুখের ঝাঁঝালো স্বাদ চমৎকার উদ্দীপনা দেয় যা তামাকের গন্ধ এবং আসক্তি উভয়কেই দূরে ঠেলে দিতে সাহায্য করে।",
+            actionPlan = "সব সময় আপনার পকেটে বা ব্যাগে ছোট কোটায় লবঙ্গ বা এলাচ সংগ্রহে রাখুন। যখনই অবচেতনভাবে ধূমপানের ইচ্ছা হবে, সাথে সাথে মুখে একটি কুচি দিয়ে দিন।"
         )
         EducationalItem(
             icon = "🛡️",
-            title = "ট্রিগার ও ধূমপানের পরিবেশ এড়ানো",
-            description = "যে আড্ডা, সামাজিক দল বা কাজের অবসরে ধূমপানের ইচ্ছে হতো, সেই স্থানগুলো কিছুদিন এড়িয়ে চলুন এবং নিজেকে সৃজনশীল কাজে ব্যস্ত রাখুন।"
+            title = "ট্রিগার জোন ও সামাজিক পরিবেশ কঠোর এড়ানো",
+            shortDesc = "ধূমপানের উদ্দীপনা জাগায় এমন আড্ডা বা কাজের স্থান কিছুদিন এড়িয়ে চলুন।",
+            detailedDesc = "স্মরণ রাখুন, আগের যেই অভ্যাস আপনার মনের অবচেতন অংশে ধূমপানের ডাক দিত—যেমন কাজের বিরতি বা ধোঁয়াটে আড্ডা—পুনরায় সেখানে ফিরে গেলে মন দুর্বল হয়ে পড়ে। ট্রিগার থেকে দূরে থাকা মানেই জয়ের প্রথম ধাপ।",
+            actionPlan = "যারা আপনাকে তামাক ছাড়তে উৎসাহ দেয় শুধু তাদের সাথে সময় কাটান এবং কাজের ফাঁকে সিগারেটের দোকানের আড্ডা পুরোপুরি এড়িয়ে চলে স্বাস্থ্যকর কোনো বিকল্প খাবার বা পানীয় উপভোগ করুন।"
         )
     }
 }
 
 @Composable
-fun EducationalItem(icon: String, title: String, description: String) {
-    Row(
+fun EducationalItem(
+    icon: String,
+    title: String,
+    shortDesc: String,
+    detailedDesc: String,
+    actionPlan: String
+) {
+    var isExpanded by remember { mutableStateOf(false) }
+    val haptic = LocalHapticFeedback.current
+
+    Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        verticalAlignment = Alignment.Top
+            .padding(vertical = 4.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .clickable {
+                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                isExpanded = !isExpanded
+            }
+            .animateContentSize(
+                animationSpec = spring(
+                    dampingRatio = Spring.DampingRatioLowBouncy,
+                    stiffness = Spring.StiffnessLow
+                )
+            ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (isExpanded) {
+                PrimaryMint.copy(alpha = 0.04f)
+            } else {
+                MaterialTheme.colorScheme.onBackground.copy(alpha = 0.02f)
+            }
+        ),
+        shape = RoundedCornerShape(16.dp)
     ) {
-        Box(
+        Column(
             modifier = Modifier
-                .padding(top = 2.dp)
-                .size(34.dp)
-                .clip(CircleShape)
-                .background(PrimaryMint.copy(alpha = 0.08f)),
-            contentAlignment = Alignment.Center
+                .fillMaxWidth()
+                .padding(12.dp)
         ) {
-            Text(text = icon, fontSize = 16.sp)
-        }
-        Spacer(modifier = Modifier.width(12.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground
-            )
-            Spacer(modifier = Modifier.height(2.dp))
-            Text(
-                text = description,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.65f),
-                lineHeight = 15.sp
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(36.dp)
+                        .clip(CircleShape)
+                        .background(
+                            if (isExpanded) PrimaryMint.copy(alpha = 0.15f)
+                            else PrimaryMint.copy(alpha = 0.08f)
+                        ),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(text = icon, fontSize = 18.sp)
+                }
+
+                Spacer(modifier = Modifier.width(12.dp))
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = title,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isExpanded) PrimaryMint else MaterialTheme.colorScheme.onBackground
+                    )
+                    if (!isExpanded) {
+                        Text(
+                            text = shortDesc,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+
+                Icon(
+                    imageVector = if (isExpanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = "Expand Status",
+                    tint = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.4f),
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+
+            if (isExpanded) {
+                Spacer(modifier = Modifier.height(12.dp))
+                HorizontalDivider(color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Short Description
+                Text(
+                    text = shortDesc,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.9f),
+                    lineHeight = 18.sp
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Detailed Scientific Explanation Box
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            MaterialTheme.colorScheme.onBackground.copy(alpha = 0.03f),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .padding(10.dp)
+                ) {
+                    Text(text = "🔬", fontSize = 14.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "বিজ্ঞানসম্মত সত্যটি:",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = PrimaryMint
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = detailedDesc,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // First Steps Action Block
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            SecondaryEmerald.copy(alpha = 0.04f),
+                            RoundedCornerShape(8.dp)
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = SecondaryEmerald.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .padding(10.dp)
+                ) {
+                    Text(text = "🎯", fontSize = 14.sp)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Column {
+                        Text(
+                            text = "আপনার প্রথম পদক্ষেপ (Action Plan):",
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = SecondaryEmerald
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(
+                            text = actionPlan,
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.85f),
+                            lineHeight = 16.sp
+                        )
+                    }
+                }
+            }
         }
     }
 }
